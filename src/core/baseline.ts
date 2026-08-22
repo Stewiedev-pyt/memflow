@@ -18,12 +18,3 @@ export function zScore(value: number, s: Stats): number {
   if (!Number.isFinite(value) || s.n < 3 || s.stdDev === 0) return 0;
   return (value - s.mean) / s.stdDev;
 }
-
-export function slopePctPertime(series: number[], perMs: number): number {
-  const clean = series.filter((v) => Number.isFinite(v)) as number[];
-  if (clean.length < 2) return 0;
-  const first = clean[0];
-  const last = clean[clean.length - 1];
-  if (!first || first <= 0) return last > 0 ? 100 : 0;
-  return ((last - first) / Math.abs(first)) * 100;
-}

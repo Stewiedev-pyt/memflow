@@ -5,3 +5,5 @@ dist/
 .DS_Store
 __pycache__/
 data/
+
+remote.txt

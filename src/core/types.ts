@@ -2,6 +2,7 @@ export interface PairSnapshot {
   pairAddress: string;
   chainId: string;
   symbol: string;
+  baseAddress?: string;
   priceUsd?: number;
   liquidityUsd?: number;
   volM5?: number;

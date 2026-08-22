@@ -59,6 +59,7 @@ export function toSnapshot(p: DexPair): import("../core/types.js").PairSnapshot 
     pairAddress: p.pairAddress,
     chainId: p.chainId,
     symbol: p.baseToken.symbol,
+    baseAddress: p.baseToken.address?.toLowerCase(),
     priceUsd: p.priceUsd ? Number(p.priceUsd) : undefined,
     liquidityUsd: p.liquidity?.usd,
     volM5: p.volume?.m5,

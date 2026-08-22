@@ -4,6 +4,8 @@ import { getPairsByAddresses, toSnapshot } from "../sources/dexscreener.js";
 import { getRecentTokenTransfers, rankWhales, getTokenBalance } from "../sources/etherscan.js";
 import { evaluateFlow, STATE_EMOJI } from "../core/signals.js";
 import { analyzeDistribution, describeDistribution, DistributionSignal } from "../core/distribution.js";
+import { recordTrades, analyzeTopTraders } from "../core/toptraders.js";
+import { getPoolTrades, getPoolBaseToken, toGeckoNetwork } from "../sources/geckoterminal.js";
 import { FlowState, PairSnapshot } from "../core/types.js";
 import { DexPair } from "../sources/dexscreener.js";
 
@@ -14,11 +16,15 @@ const WHALE_DROP_PCT = 0.4;
 const LIQ_MIN_DELTA_USD = 2_000;
 const LIQ_MIN_PCT = 0.08;
 const LIQ_ALERT_COOLDOWN_MS = 10 * 60_000;
+const TT_TRADE_MIN_USD = 800;
+const TT_COOLDOWN_MS = 30 * 60_000;
 
 const lastState = new Map<string, FlowState>();
 const lastDist = new Map<string, { kind: string; ts: number }>();
 const whaleTick = new Map<string, number>();
 const liqAlertAt = new Map<string, number>();
+const ttCooldown = new Map<string, Map<string, number>>();
+const gtBaseCache = new Map<string, string | null>();
 
 function fmtUsd(n?: number): string {
   if (n === undefined || !Number.isFinite(n)) return "?";
@@ -70,6 +76,8 @@ export function startWatchEngine(bot: Bot): NodeJS.Timeout {
         if (dist && shouldSendDist(p.pairAddress, dist.kind)) {
           await sendDistAlert(bot, snap, dist);
         }
+
+        await trackTopTraders(bot, snap);
       }
 
       if (tickCount % WHALE_CHECK_INTERVAL_TICKS === 0) {
@@ -91,8 +99,68 @@ function shouldSendDist(pair: string, kind: string): boolean {
   return true;
 }
 
-async function sendLiqAlert(
+async function trackTopTraders(bot: Bot, snap: PairSnapshot): Promise<void> {
+  const network = toGeckoNetwork(snap.chainId);
+  // GeckoTerminal's trades feed is sparse with corrupted USD volumes on Solana;
+  // Solana smart-money stays gated until a Helius key is configured.
+  if (!network || network === "solana") return;
+  try {
+    let gtBase = gtBaseCache.get(snap.pairAddress);
+    if (gtBase === undefined) {
+      gtBase = await getPoolBaseToken(network, snap.pairAddress);
+      gtBaseCache.set(snap.pairAddress, gtBase);
+    }
+
+    const fetched = await getPoolTrades(network, snap.pairAddress);
+    const trades = fetched.filter((t) => t.usd >= TT_TRADE_MIN_USD && t.usd < 5_000_000);
+    if (trades.length === 0) return;
+
+    const aligned =
+      gtBase && snap.baseAddress && gtBase !== snap.baseAddress.toLowerCase()
+        ? trades.map((t) => ({ ...t, side: (t.side === "buy" ? "sell" : "buy") as "buy" | "sell" }))
+        : trades;
+    recordTrades(snap.pairAddress, aligned);
+
+    const c = analyzeTopTraders(snap.pairAddress);
+    if (!c.verdict) return;
+
+    let cooldowns = ttCooldown.get(snap.pairAddress);
+    if (!cooldowns) {
+      cooldowns = new Map();
+      ttCooldown.set(snap.pairAddress, cooldowns);
+    }
+    const last = cooldowns.get(c.verdict) ?? 0;
+    if (Date.now() - last < TT_COOLDOWN_MS) return;
+    cooldowns.set(c.verdict, Date.now());
+
+    await sendTopTraderAlert(bot, snap, c);
+  } catch {
+    // top-trader feed is best-effort; never break the polling loop
+  }
+}
+
+async function sendTopTraderAlert(
   bot: Bot,
+  snap: PairSnapshot,
+  c: import("../core/toptraders.js").TopTraderConsensus
+): Promise<void> {
+  if (!c.verdict) return;
+  const exiting = c.verdict === "EXIT";
+  const head = exiting
+    ? `🐋 SMART MONEY EXIT - *${snap.symbol}* (${snap.chainId})`
+    : `🟢 SMART MONEY ACCUMULATION - *${snap.symbol}* (${snap.chainId})`;
+  const body = [
+    `${c.trackedWallets} top traders (≥$1K moves, last ~15m):`,
+    `sellers: *${c.sellers}* · buyers: *${c.buyers}* · net flow: ${fmtUsd(Math.abs(c.netUsd))} ${c.netUsd > 0 ? "IN" : "OUT"}`,
+    `liq: ${fmtUsd(snap.liquidityUsd)} · price: ${snap.priceUsd ? "$" + snap.priceUsd : "?"}`,
+  ];
+  const note = exiting
+    ? `_Big wallets are leaving together. Retail is usually the exit liquidity here._`
+    : `_Big wallets are loading quietly. Watch for follow-through volume before chasing._`;
+  await broadcast(bot, [head, "", ...body, "", note].join("\n"));
+}
+
+async function sendLiqAlert(  bot: Bot,
   snap: PairSnapshot,
   deltaUsd: number,
   pctOfPrev: number

@@ -22,7 +22,42 @@ CREATE TABLE IF NOT EXISTS snapshots (
   buys_m5 INTEGER, sells_m5 INTEGER, mcap REAL
 );
 CREATE INDEX IF NOT EXISTS idx_snap ON snapshots(pair_address, ts);
+CREATE TABLE IF NOT EXISTS whales (
+  pair_address TEXT NOT NULL,
+  token_address TEXT NOT NULL,
+  wallet TEXT NOT NULL,
+  balance TEXT NOT NULL,
+  price_at_track REAL,
+  tracked_at INTEGER NOT NULL,
+  PRIMARY KEY (pair_address, wallet)
+);
 `);
+
+export interface WhaleRow {
+  wallet: string;
+  balance: string;
+  priceAtTrack?: number;
+}
+
+export function replaceWhales(pairAddress: string, tokenAddress: string, rows: WhaleRow[]): void {
+  db.prepare("DELETE FROM whales WHERE pair_address = ?").run(pairAddress);
+  const ins = db.prepare(
+    "INSERT INTO whales (pair_address, token_address, wallet, balance, price_at_track, tracked_at) VALUES (?, ?, ?, ?, ?, ?)"
+  );
+  for (const r of rows) ins.run(pairAddress, tokenAddress.toLowerCase(), r.wallet, r.balance, r.priceAtTrack ?? null, Date.now());
+}
+
+export function getWhales(pairAddress: string): WhaleRow[] {
+  return db
+    .prepare("SELECT wallet, balance, price_at_track FROM whales WHERE pair_address = ?")
+    .all(pairAddress) as unknown as WhaleRow[];
+}
+
+export function updateWhaleBalance(pairAddress: string, wallet: string, balance: string): void {
+  db.prepare("UPDATE whales SET balance = ?, tracked_at = ? WHERE pair_address = ? AND wallet = ?").run(
+    balance, Date.now(), pairAddress, wallet
+  );
+}
 
 export function addWatched(w: Omit<WatchedPair, "addedAt">): boolean {
   const stmt = db.prepare(

@@ -93,10 +93,10 @@ npm run dev            # same, with hot reload
 - [x] Real Token Finder (`/find`)
 - [x] Distribution Radar + ETH whale tracking
 - [x] Technical briefing (`/brief`) — RSI/EMA/S&R/volume
+- [x] Production-ready: health endpoint, graceful shutdown, Dockerfile, deploy guide ([DEPLOY.md](DEPLOY.md))
 - [ ] Chart vision analysis (LLM)
 - [ ] Narrative tracker (Twitter mention timeline)
 - [ ] x402 paid API tier
-- [ ] 24/7 deployment guide
 
 ## Disclaimer
 

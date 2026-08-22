@@ -11,10 +11,14 @@ const POLL_INTERVAL_MS = 60_000;
 const WHALE_CHECK_INTERVAL_TICKS = 5;
 const DIST_COOLDOWN_MS = 45 * 60_000;
 const WHALE_DROP_PCT = 0.4;
+const LIQ_MIN_DELTA_USD = 2_000;
+const LIQ_MIN_PCT = 0.08;
+const LIQ_ALERT_COOLDOWN_MS = 10 * 60_000;
 
 const lastState = new Map<string, FlowState>();
 const lastDist = new Map<string, { kind: string; ts: number }>();
 const whaleTick = new Map<string, number>();
+const liqAlertAt = new Map<string, number>();
 
 function fmtUsd(n?: number): string {
   if (n === undefined || !Number.isFinite(n)) return "?";
@@ -39,6 +43,21 @@ export function startWatchEngine(bot: Bot): NodeJS.Timeout {
         saveSnapshot(snap);
         const history: PairSnapshot[] = loadSnapshots(p.pairAddress);
         if (history.length < 4) continue;
+
+        const prevSnap = history[history.length - 2];
+        if (prevSnap?.liquidityUsd && snap.liquidityUsd && prevSnap.liquidityUsd > 0) {
+          const delta = snap.liquidityUsd - prevSnap.liquidityUsd;
+          const pctOfPrev = Math.abs(delta) / prevSnap.liquidityUsd;
+          const lastAlert = liqAlertAt.get(p.pairAddress) ?? 0;
+          if (
+            Math.abs(delta) >= LIQ_MIN_DELTA_USD &&
+            pctOfPrev >= LIQ_MIN_PCT &&
+            Date.now() - lastAlert > LIQ_ALERT_COOLDOWN_MS
+          ) {
+            liqAlertAt.set(p.pairAddress, Date.now());
+            await sendLiqAlert(bot, snap, delta, pctOfPrev);
+          }
+        }
 
         const signal = evaluateFlow(history.slice(0, -1), snap);
         const prev = lastState.get(p.pairAddress);
@@ -70,6 +89,27 @@ function shouldSendDist(pair: string, kind: string): boolean {
   if (prev && prev.kind === kind && Date.now() - prev.ts < DIST_COOLDOWN_MS) return false;
   lastDist.set(pair, { kind, ts: Date.now() });
   return true;
+}
+
+async function sendLiqAlert(
+  bot: Bot,
+  snap: PairSnapshot,
+  deltaUsd: number,
+  pctOfPrev: number
+): Promise<void> {
+  const entering = deltaUsd > 0;
+  const head = entering
+    ? `💧 LIQUIDITY IN - *${snap.symbol}* (${snap.chainId})`
+    : `🚰 LIQUIDITY OUT - *${snap.symbol}* (${snap.chainId})`;
+  const body = [
+    `${entering ? "+" : "-"}${fmtUsd(Math.abs(deltaUsd))} ${entering ? "added to" : "pulled from"} the pool in the last minute (${(pctOfPrev * 100).toFixed(1)}%)`,
+    `liq now: ${fmtUsd(snap.liquidityUsd)} · mcap: ${fmtUsd(snap.mcap)}`,
+    `price: ${snap.priceUsd ? "$" + snap.priceUsd : "?"} · vol m5: ${fmtUsd(snap.volM5)}`,
+  ];
+  const note = entering
+    ? `_LPs adding - bullish confidence signal. Verify it is not one wallet restocking._`
+    : `_LP removal often precedes rugs. Tighten stops or consider exiting._`;
+  await broadcast(bot, [head, "", ...body, "", note].join("\n"));
 }
 
 async function sendFlowAlert(

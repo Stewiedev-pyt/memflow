@@ -1,11 +1,12 @@
 import { createBot, initBot, runPolling } from "./bot/index.js";
-import { reportSources } from "./config.js";
+import { logSecretFingerprints, reportSources } from "./config.js";
 import { startWatchEngine } from "./watch/engine.js";
 import { startHealthServer } from "./health.js";
 
 async function main(): Promise<void> {
   console.log("🌊 memflow starting...");
   for (const line of reportSources()) console.log(`   ${line}`);
+  logSecretFingerprints();
   startHealthServer();
 
   const bot = createBot();

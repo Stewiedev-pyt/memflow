@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { createHash } from "node:crypto";
 
 function required(name: string): string {
   const value = process.env[name];
@@ -23,6 +24,23 @@ export const config = {
 } as const;
 
 export type Config = typeof config;
+
+export function logSecretFingerprints(): void {
+  const entries: Array<[string, string | undefined]> = [
+    ["TELEGRAM_BOT_TOKEN", config.telegramToken],
+    ["ETHERSCAN_API_KEY", config.etherscanKey],
+    ["COINGECKO_API_KEY", config.coingeckoKey],
+    ["SOLSCAN_API_KEY", config.solscanKey],
+  ];
+  for (const [name, value] of entries) {
+    if (!value) {
+      console.log(`🔑 ${name}: absent`);
+      continue;
+    }
+    const fp = createHash("sha256").update(value).digest("hex").slice(0, 12);
+    console.log(`🔑 ${name}: len=${value.length} fp=${fp}`);
+  }
+}
 
 export function reportSources(): string[] {
   const lines: string[] = [];

@@ -84,7 +84,7 @@ Required keys (all have free tiers): `TELEGRAM_BOT_TOKEN`, `ETHERSCAN_API_KEY`, 
 ## Roadmap
 
 - [x] Project scaffold + multi-source data adapters
-- [ ] Flow Radar signal engine
+- [x] Flow Radar signal engine
 - [ ] `/audit` command suite
 - [ ] Real Token Finder
 - [ ] Smart-money tracking

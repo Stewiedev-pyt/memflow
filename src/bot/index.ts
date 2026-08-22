@@ -2,6 +2,7 @@ import { Bot, Context } from "grammy";
 import { registerStartCommand } from "./commands/start.js";
 import { registerPingCommand } from "./commands/ping.js";
 import { registerScanCommand } from "./commands/scan.js";
+import { registerWatchCommands } from "./commands/watch.js";
 import { config } from "../config.js";
 
 export function createBot(): Bot {
@@ -10,10 +11,14 @@ export function createBot(): Bot {
   registerStartCommand(bot);
   registerPingCommand(bot);
   registerScanCommand(bot);
+  registerWatchCommands(bot);
 
   void bot.api.setMyCommands([
     { command: "start", description: "Introduce memflow" },
     { command: "scan", description: "Scan a token by name or contract address" },
+    { command: "watch", description: "Track a token - get flow alerts" },
+    { command: "watchlist", description: "Show tracked tokens" },
+    { command: "unwatch", description: "Stop tracking a token" },
     { command: "ping", description: "Check memflow is alive" },
   ]);
 
@@ -24,10 +29,13 @@ export function createBot(): Bot {
   return bot;
 }
 
-export async function startBot(bot: Bot): Promise<void> {
+export async function initBot(bot: Bot): Promise<string> {
   await bot.init();
-  console.log(`🚀 memflow online as @${bot.botInfo.username}`);
-  await bot.start();
+  return bot.botInfo.username;
+}
+
+export function runPolling(bot: Bot): Promise<void> {
+  return bot.start();
 }
 
 export type { Context };

@@ -33,6 +33,39 @@ export async function searchPairs(query: string): Promise<DexPair[]> {
   return data.pairs ?? [];
 }
 
+export async function getPairsByAddresses(addresses: string[]): Promise<DexPair[]> {
+  if (addresses.length === 0) return [];
+  const chunks: string[][] = [];
+  for (let i = 0; i < addresses.length; i += 30) {
+    chunks.push(addresses.slice(i, i + 30));
+  }
+  const results: DexPair[] = [];
+  for (const chunk of chunks) {
+    const data = await getJson<{ pairs: DexPair[] | null }>(
+      `${BASE}/pairs/${chunk.join("/")}`
+    );
+    results.push(...(data.pairs ?? []));
+  }
+  return results;
+}
+
+export function toSnapshot(p: DexPair): import("../core/types.js").PairSnapshot {
+  return {
+    pairAddress: p.pairAddress,
+    chainId: p.chainId,
+    symbol: p.baseToken.symbol,
+    priceUsd: p.priceUsd ? Number(p.priceUsd) : undefined,
+    liquidityUsd: p.liquidity?.usd,
+    volM5: p.volume?.m5,
+    volH1: p.volume?.h1,
+    volH24: p.volume?.h24,
+    buysM5: p.txns?.m5?.buys,
+    sellsM5: p.txns?.m5?.sells,
+    mcap: p.marketCap,
+    ts: Date.now(),
+  };
+}
+
 export function sortPairsByLiquidity(pairs: DexPair[]): DexPair[] {
   return [...pairs].sort(
     (a, b) => (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0)

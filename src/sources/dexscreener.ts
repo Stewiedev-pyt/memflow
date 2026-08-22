@@ -14,6 +14,11 @@ export interface DexPair {
   fdv?: number;
   marketCap?: number;
   pairCreatedAt?: number;
+  info?: {
+    imageUrl?: string;
+    websites?: Array<{ label?: string; url: string }>;
+    socials?: Array<{ type?: string; url: string }>;
+  };
 }
 
 const BASE = "https://api.dexscreener.com/latest/dex";

@@ -85,7 +85,7 @@ Required keys (all have free tiers): `TELEGRAM_BOT_TOKEN`, `ETHERSCAN_API_KEY`, 
 
 - [x] Project scaffold + multi-source data adapters
 - [x] Flow Radar signal engine
-- [ ] `/audit` command suite
+- [x] `/audit` command suite (honeypot sim, contract flags, RugCheck for Solana)
 - [ ] Real Token Finder
 - [ ] Smart-money tracking
 - [ ] Fundamentals + technicals briefing

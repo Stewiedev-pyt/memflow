@@ -6,6 +6,8 @@ import { evaluateFlow, STATE_EMOJI } from "../core/signals.js";
 import { analyzeDistribution, describeDistribution, DistributionSignal } from "../core/distribution.js";
 import { recordTrades, analyzeTopTraders } from "../core/toptraders.js";
 import { getPoolTrades, getPoolBaseToken, toGeckoNetwork } from "../sources/geckoterminal.js";
+import { getTokenLargestAccounts } from "../sources/helius.js";
+import { config } from "../config.js";
 import { FlowState, PairSnapshot } from "../core/types.js";
 import { DexPair } from "../sources/dexscreener.js";
 
@@ -234,6 +236,10 @@ async function runWhaleChecks(
   watchedByPair: Map<string, { pairAddress: string; chainId: string; symbol: string }>
 ): Promise<void> {
   for (const p of pairs) {
+    if (p.chainId === "solana") {
+      if (config.heliusKey) await runSolanaWhaleCheck(bot, p);
+      continue;
+    }
     if (p.chainId !== "ethereum") continue;
     const token = p.baseToken.address.toLowerCase();
     const pair = p.pairAddress;
@@ -287,6 +293,63 @@ async function runWhaleChecks(
     } catch (err) {
       console.error("[whales]", p.baseToken.symbol, (err as Error).message);
     }
+  }
+}
+
+const SOL_BURN = "1nc1nerator11111111111111111111111111111111";
+
+async function runSolanaWhaleCheck(bot: Bot, p: DexPair): Promise<void> {
+  const mint = p.baseToken.address;
+  const pair = p.pairAddress;
+  whaleTick.set(pair, (whaleTick.get(pair) ?? 0) + 1);
+  try {
+    const accounts = await getTokenLargestAccounts(mint);
+    if (accounts.length === 0) return;
+    const holders = accounts.filter((a) => a.address !== SOL_BURN);
+    const byAddr = new Map(holders.map((h) => [h.address, h.uiAmount]));
+    const priceNow = toSnapshot(p).priceUsd;
+
+    let whales = getWhales(pair);
+    if (whales.length === 0) {
+      replaceWhales(
+        pair,
+        mint,
+        holders.slice(0, 8).map((h) => ({
+          wallet: h.address,
+          balance: String(Math.round(h.uiAmount)),
+          priceAtTrack: priceNow,
+        }))
+      );
+      whales = getWhales(pair);
+      if (whales.length > 0) {
+        await broadcast(bot, `🐋 tracking ${whales.length} largest SOL holders of *${p.baseToken.symbol}* — will flag when they dump.`);
+      }
+      return;
+    }
+
+    for (const w of whales.slice(0, 8)) {
+      const now = byAddr.get(w.wallet);
+      if (now === undefined) continue;
+      const tracked = Number(w.balance || "0");
+      if (!tracked || tracked <= 0) continue;
+      const dropped = 1 - now / tracked;
+      const priceUp = w.priceAtTrack && priceNow ? priceNow >= (w.priceAtTrack as number) * 1.02 : true;
+      if (dropped >= WHALE_DROP_PCT && priceUp) {
+        await broadcast(bot, [
+          `🐋 WHALE EXITED - *${p.baseToken.symbol}* (SOL)`,
+          "",
+          `tracked holder \`${w.wallet.slice(0, 10)}…\` sold ~${Math.round(dropped * 100)}% of its stack`,
+          priceUp ? "while price held or rose - retail is the exit liquidity" : "",
+          "",
+          "consider your position.",
+        ].filter(Boolean).join("\n"));
+        updateWhaleBalance(pair, w.wallet, String(Math.round(now)));
+      } else if (dropped >= 0.05) {
+        updateWhaleBalance(pair, w.wallet, String(Math.round(now)));
+      }
+    }
+  } catch (err) {
+    console.error("[sol-whales]", p.baseToken.symbol, (err as Error).message);
   }
 }
 

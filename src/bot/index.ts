@@ -5,6 +5,7 @@ import { registerScanCommand } from "./commands/scan.js";
 import { registerWatchCommands } from "./commands/watch.js";
 import { registerAuditCommand } from "./commands/audit.js";
 import { registerFindCommand } from "./commands/find.js";
+import { registerBriefCommand } from "./commands/brief.js";
 import { config } from "../config.js";
 
 export function createBot(): Bot {
@@ -16,11 +17,13 @@ export function createBot(): Bot {
   registerWatchCommands(bot);
   registerAuditCommand(bot);
   registerFindCommand(bot);
+  registerBriefCommand(bot);
 
   void bot.api.setMyCommands([
     { command: "start", description: "Introduce memflow" },
     { command: "scan", description: "Scan a token by name or contract address" },
     { command: "find", description: "Find the REAL token among clones" },
+    { command: "brief", description: "Technicals + news briefing" },
     { command: "audit", description: "Security audit of a contract" },
     { command: "watch", description: "Track a token - get flow alerts" },
     { command: "watchlist", description: "Show tracked tokens" },

@@ -1,5 +1,6 @@
-import { Bot } from "grammy";
+import { Bot, Context } from "grammy";
 import { searchPairs, sortPairsByLiquidity, DexPair } from "../../sources/dexscreener.js";
+import { setPending } from "../pending.js";
 
 function fmtUsd(n?: number): string {
   if (n === undefined) return "?";
@@ -30,34 +31,41 @@ function renderPair(p: DexPair): string {
   ].join("\n");
 }
 
+export async function handleScan(ctx: Context, query: string): Promise<void> {
+  if (!ctx.chat) return;
+  const thinking = await ctx.reply(`🔍 scanning *${query}*...`, { parse_mode: "Markdown" });
+  try {
+    const pairs = sortPairsByLiquidity(await searchPairs(query)).slice(0, 5);
+    if (pairs.length === 0) {
+      await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, `No pairs found for "${query}".`);
+      return;
+    }
+    const body = pairs.map(renderPair).join("\n\n");
+    const header = `🔍 *${query.toUpperCase()}* — top ${pairs.length} by liquidity:\n\n`;
+    await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, header + body, {
+      parse_mode: "Markdown",
+      link_preview_options: { is_disabled: true },
+    });
+  } catch (err) {
+    await ctx.api.editMessageText(
+      ctx.chat.id,
+      thinking.message_id,
+      `⚠️ scan failed: ${(err as Error).message}`
+    );
+  }
+}
+
 export function registerScanCommand(bot: Bot): void {
   bot.command("scan", async (ctx) => {
     const query = ctx.match?.trim();
     if (!query) {
-      await ctx.reply("Usage: `/scan <name or contract address>`", {
-        parse_mode: "Markdown",
-      });
+      setPending(ctx.chat.id, "scan");
+      await ctx.reply(
+        "🔎 Send me a token *name* or *contract address* and I'll scan it.\n\nExample: `pepe` or `0x6982…1933`\n_Tip: `/scan <name|CA>` also works in one message._",
+        { parse_mode: "Markdown" }
+      );
       return;
     }
-    const thinking = await ctx.reply(`🔍 scanning *${query}*...`, { parse_mode: "Markdown" });
-    try {
-      const pairs = sortPairsByLiquidity(await searchPairs(query)).slice(0, 5);
-      if (pairs.length === 0) {
-        await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, `No pairs found for "${query}".`);
-        return;
-      }
-      const body = pairs.map(renderPair).join("\n\n");
-      const header = `🔍 *${query.toUpperCase()}* — top ${pairs.length} by liquidity:\n\n`;
-      await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, header + body, {
-        parse_mode: "Markdown",
-        link_preview_options: { is_disabled: true },
-      });
-    } catch (err) {
-      await ctx.api.editMessageText(
-        ctx.chat.id,
-        thinking.message_id,
-        `⚠️ scan failed: ${(err as Error).message}`
-      );
-    }
+    await handleScan(ctx, query);
   });
 }

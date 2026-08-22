@@ -1,47 +1,57 @@
-import { Bot } from "grammy";
+import { Bot, Context } from "grammy";
 import { searchPairs, sortPairsByLiquidity } from "../../sources/dexscreener.js";
 import { addWatched, removeWatched, listWatched } from "../../storage/db.js";
 import { registerAlertChat } from "../../watch/engine.js";
+import { setPending } from "../pending.js";
+
+export async function handleWatch(ctx: Context, query: string): Promise<void> {
+  if (!ctx.chat) return;
+  const thinking = await ctx.reply(`📡 setting up watch on *${query}*...`, { parse_mode: "Markdown" });
+  try {
+    let pair = null;
+    if (/^0x[a-fA-F0-9]{40}$|^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(query)) {
+      const byAddr = await searchPairs(query);
+      pair = sortPairsByLiquidity(byAddr)[0] ?? null;
+    }
+    if (!pair) {
+      const results = sortPairsByLiquidity(await searchPairs(query));
+      pair = results[0] ?? null;
+    }
+    if (!pair) {
+      await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, `Nothing found for "${query}".`);
+      return;
+    }
+    addWatched({ pairAddress: pair.pairAddress, chainId: pair.chainId, symbol: pair.baseToken.symbol });
+    await ctx.api.editMessageText(
+      ctx.chat.id,
+      thinking.message_id,
+      [
+        `📡 *watching ${pair.baseToken.symbol}* on ${pair.chainId}`,
+        `liq: $${(pair.liquidity?.usd ?? 0).toFixed(0)} · mcap: $${(pair.marketCap ?? 0).toFixed(0)}`,
+        "",
+        "Polling every 60s. You'll get alerts here on: 🟢 HOP · 🟡 TRAP · 🔴 EXIT NOW · 🚨 RUG ALERT",
+        "_Baseline needs ~5 minutes of history to calibrate._",
+      ].join("\n"),
+      { parse_mode: "Markdown" }
+    );
+  } catch (err) {
+    await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, `⚠️ failed: ${(err as Error).message}`);
+  }
+}
 
 export function registerWatchCommands(bot: Bot): void {
   bot.command("watch", async (ctx) => {
     registerAlertChat(ctx.chat.id);
     const query = ctx.match?.trim();
     if (!query) {
-      await ctx.reply("Usage: `/watch <token name or pair address>`", { parse_mode: "Markdown" });
-      return;
-    }
-    const thinking = await ctx.reply(`📡 setting up watch on *${query}*...`, { parse_mode: "Markdown" });
-    try {
-      let pair = null;
-      if (/^0x[a-fA-F0-9]{40}$|^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(query)) {
-        const byAddr = await searchPairs(query);
-        pair = sortPairsByLiquidity(byAddr)[0] ?? null;
-      }
-      if (!pair) {
-        const results = sortPairsByLiquidity(await searchPairs(query));
-        pair = results[0] ?? null;
-      }
-      if (!pair) {
-        await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, `Nothing found for "${query}".`);
-        return;
-      }
-      addWatched({ pairAddress: pair.pairAddress, chainId: pair.chainId, symbol: pair.baseToken.symbol });
-      await ctx.api.editMessageText(
-        ctx.chat.id,
-        thinking.message_id,
-        [
-          `📡 *watching ${pair.baseToken.symbol}* on ${pair.chainId}`,
-          `liq: $${(pair.liquidity?.usd ?? 0).toFixed(0)} · mcap: $${(pair.marketCap ?? 0).toFixed(0)}`,
-          "",
-          "Polling every 60s. You'll get alerts here on: 🟢 HOP · 🟡 TRAP · 🔴 EXIT NOW · 🚨 RUG ALERT",
-          "_Baseline needs ~5 minutes of history to calibrate._",
-        ].join("\n"),
+      setPending(ctx.chat.id, "watch");
+      await ctx.reply(
+        "📡 Send me a *token name or pair address* to track.\n\nYou'll get alerts on flow spikes and rug signals.\n_Tip: `/watch <token>` also works in one message._",
         { parse_mode: "Markdown" }
       );
-    } catch (err) {
-      await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, `⚠️ failed: ${(err as Error).message}`);
+      return;
     }
+    await handleWatch(ctx, query);
   });
 
   bot.command("unwatch", async (ctx) => {

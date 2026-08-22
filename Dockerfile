@@ -3,7 +3,7 @@ WORKDIR /app
 COPY package*.json tsconfig.json ./
 RUN npm ci
 COPY src ./src
-RUN npx tsup src/index.ts --format cjs --out-dir dist
+RUN npm run build
 
 FROM node:22-alpine
 WORKDIR /app

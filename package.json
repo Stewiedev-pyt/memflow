@@ -6,11 +6,11 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "bot": "tsx src/index.ts",
-    "build": "tsup src/index.ts --format cjs --out-dir dist",
+    "build": "tsup src/index.ts --format cjs --out-dir dist && node scripts/fix-sqlite.mjs",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13.0"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

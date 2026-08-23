@@ -4,10 +4,13 @@ import { auditSolanaViaRugcheck } from "../../sources/rugcheck.js";
 import { auditEvm, auditSolana, AuditVerdict } from "../../core/audit.js";
 import { setPending } from "../pending.js";
 
+function truncate(text: string, max = 4000): string {
+  if (text.length <= max) return text;
+  return text.slice(0, max - 20) + "\n\n_(truncated)_";
+}
+
 export async function handleAudit(ctx: Context, address: string): Promise<void> {
   if (!ctx.chat) return;
-  const edit = (msg: { message_id: number }, chatId: number, text: string) =>
-    ctx.api.editMessageText(chatId, msg.message_id, text, { link_preview_options: { is_disabled: true } });
 
   const thinking = await ctx.reply(`🛡️ auditing \`${address.slice(0, 12)}…\`…`, { parse_mode: "Markdown" });
 
@@ -19,7 +22,7 @@ export async function handleAudit(ctx: Context, address: string): Promise<void> 
     if (isEvmAddress(address)) {
       const evm = await auditEvmViaHoneypot(address);
       if (!evm) {
-        await edit(thinking, ctx.chat.id, `No live pool found on ETH/BSC/Base.\nDouble-check the contract — or it may be too new.`);
+        await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, `No live pool found on ETH/BSC/Base.\nDouble-check the contract — or it may be too new.`);
         return;
       }
       verdict = auditEvm(evm.result);
@@ -28,19 +31,19 @@ export async function handleAudit(ctx: Context, address: string): Promise<void> 
     } else if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) {
       const rc = await auditSolanaViaRugcheck(address);
       if (!rc) {
-        await edit(thinking, ctx.chat.id, "RugCheck has no report for that mint (too new or invalid).");
+        await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, "RugCheck has no report for that mint (too new or invalid).");
         return;
       }
       verdict = auditSolana(rc);
       chainLabel = "SOLANA";
       symbol = "?";
     } else {
-      await edit(thinking, ctx.chat.id, "That doesn't look like a valid contract address.");
+      await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, "That doesn't look like a valid contract address.");
       return;
     }
 
     const flags = verdict.lines.map((l) => `${l.ok ? "✅" : "⚠️"} ${l.text}`).join("\n");
-    const card = [
+    const card = truncate([
       `🛡️ *AUDIT: ${symbol}* on ${chainLabel}`,
       "",
       `*Score: ${verdict.score}/100 — ${verdict.headline}*`,
@@ -48,11 +51,18 @@ export async function handleAudit(ctx: Context, address: string): Promise<void> 
       flags,
       "",
       `_not financial advice. an audit is a snapshot, not a guarantee._`,
-    ].join("\n");
+    ].join("\n"));
 
-    await edit(thinking, ctx.chat.id, card);
+    await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, card, {
+      parse_mode: "Markdown",
+      link_preview_options: { is_disabled: true },
+    });
   } catch (err) {
-    await edit(thinking, ctx.chat.id, `⚠️ audit failed: ${(err as Error).message}`);
+    try {
+      await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, `⚠️ audit failed: ${(err as Error).message}`);
+    } catch {
+      await ctx.reply(`⚠️ audit failed: ${(err as Error).message}`);
+    }
   }
 }
 

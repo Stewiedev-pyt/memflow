@@ -31,6 +31,10 @@ CREATE TABLE IF NOT EXISTS whales (
   tracked_at INTEGER NOT NULL,
   PRIMARY KEY (pair_address, wallet)
 );
+CREATE TABLE IF NOT EXISTS alert_chats (
+  chat_id INTEGER PRIMARY KEY,
+  created_at INTEGER NOT NULL
+);
 `);
 
 export interface WhaleRow {
@@ -77,6 +81,14 @@ export function listWatched(): WatchedPair[] {
   return db
     .prepare("SELECT pair_address, chain_id, symbol, added_at FROM watched ORDER BY added_at DESC")
     .all() as unknown as WatchedPair[];
+}
+
+export function saveAlertChat(chatId: number): void {
+  db.prepare("INSERT OR IGNORE INTO alert_chats (chat_id, created_at) VALUES (?, ?)").run(chatId, Date.now());
+}
+
+export function loadAlertChats(): number[] {
+  return db.prepare("SELECT chat_id FROM alert_chats").all().map((r: any) => r.chat_id as number);
 }
 
 const MAX_SNAPSHOTS = 120;

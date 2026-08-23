@@ -1,5 +1,5 @@
 import { Bot } from "grammy";
-import { listWatched, saveSnapshot, loadSnapshots, replaceWhales, getWhales, updateWhaleBalance } from "../storage/db.js";
+import { listWatched, saveSnapshot, loadSnapshots, replaceWhales, getWhales, updateWhaleBalance, saveAlertChat, loadAlertChats } from "../storage/db.js";
 import { getPairsByAddresses, toSnapshot } from "../sources/dexscreener.js";
 import { getRecentTokenTransfers, rankWhales, getTokenBalance } from "../sources/etherscan.js";
 import { evaluateFlow, STATE_EMOJI } from "../core/signals.js";
@@ -353,7 +353,10 @@ async function runSolanaWhaleCheck(bot: Bot, p: DexPair): Promise<void> {
   }
 }
 
-const alertChats = new Set<number>();
+const alertChats = new Set<number>(loadAlertChats());
 export function registerAlertChat(chatId: number): void {
-  alertChats.add(chatId);
+  if (!alertChats.has(chatId)) {
+    alertChats.add(chatId);
+    saveAlertChat(chatId);
+  }
 }

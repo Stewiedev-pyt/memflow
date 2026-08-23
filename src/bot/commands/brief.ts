@@ -1,5 +1,5 @@
 import { Bot } from "grammy";
-import { searchPairs, sortPairsByLiquidity, DexPair } from "../../sources/dexscreener.js";
+import { searchPairs, sortPairsByLiquidity } from "../../sources/dexscreener.js";
 import { toGeckoNetwork, getOhlcv } from "../../sources/geckoterminal.js";
 import { analyzeCandles } from "../../core/indicators.js";
 import { getNews } from "../../sources/cryptopanic.js";
@@ -12,8 +12,14 @@ function fmtUsd(n?: number): string {
   return `$${n.toFixed(4)}`;
 }
 
+function truncate(text: string, max = 4000): string {
+  if (text.length <= max) return text;
+  return text.slice(0, max - 20) + "\n\n_(truncated)_";
+}
+
 export function registerBriefCommand(bot: Bot): void {
   bot.command("brief", async (ctx) => {
+    if (!ctx.chat) return;
     const query = ctx.match?.trim().replace(/^\$/, "");
     if (!query) {
       await ctx.reply("Usage: `/brief pepe` — technicals + news + flow snapshot.", {
@@ -25,14 +31,14 @@ export function registerBriefCommand(bot: Bot): void {
     const thinking = await ctx.reply(`📊 building briefing for *$${query}*…`, { parse_mode: "Markdown" });
 
     try {
-      const pairs = sortPairsByLiquidity(await searchPairs(query)).filter(
+      const allPairs = sortPairsByLiquidity(await searchPairs(query));
+      const best = allPairs.find(
         (p) => p.baseToken.symbol.toLowerCase() === query.toLowerCase()
-      );
-      if (pairs.length === 0) {
-        await edit(thinking, bot, ctx.chat.id, `No liquid pair found for "$${query}".`);
+      ) ?? allPairs[0];
+      if (!best) {
+        await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, `No liquid pair found for "$${query}".`);
         return;
       }
-      const best: DexPair = pairs[0];
 
       const network = toGeckoNetwork(best.chainId);
       const candles = network ? await getOhlcv(network, best.pairAddress, "hour", 72) : [];
@@ -69,7 +75,7 @@ export function registerBriefCommand(bot: Bot): void {
       if (news.length > 0) {
         for (const n of news) lines.push(`📰 [${n.title.slice(0, 80)}](${n.url})`);
       } else if (!process.env.CRYPTOPANIC_API_KEY) {
-        lines.push("_news feed inactive — CRYPTOPANIC_API_KEY not set in .env_");
+        lines.push("_news feed inactive — CRYPTOPANIC_API_KEY not set_");
       } else {
         lines.push("_no recent headlines found for this ticker_");
       }
@@ -77,16 +83,17 @@ export function registerBriefCommand(bot: Bot): void {
       const watched = listWatched().some((w) => w.symbol.toLowerCase() === query.toLowerCase());
       lines.push("", watched ? "🟢 live radar active on this one" : "_not being tracked — /watch " + query + " for live flow alerts_");
 
-      await edit(thinking, bot, ctx.chat.id, lines.filter((l) => l !== "").join("\n"));
+      const card = truncate(lines.filter((l) => l !== "").join("\n"));
+      await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, card, {
+        parse_mode: "Markdown",
+        link_preview_options: { is_disabled: true },
+      });
     } catch (err) {
-      await edit(thinking, bot, ctx.chat.id, `⚠️ brief failed: ${(err as Error).message}`);
+      try {
+        await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, `⚠️ brief failed: ${(err as Error).message}`);
+      } catch {
+        await ctx.reply(`⚠️ brief failed: ${(err as Error).message}`);
+      }
     }
-  });
-}
-
-function edit(msg: { message_id: number }, bot: Bot, chatId: number, text: string): Promise<unknown> {
-  return bot.api.editMessageText(chatId, msg.message_id, text, {
-    parse_mode: "Markdown",
-    link_preview_options: { is_disabled: true },
   });
 }

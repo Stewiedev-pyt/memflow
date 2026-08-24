@@ -72,10 +72,22 @@ export function toSnapshot(p: DexPair): import("../core/types.js").PairSnapshot 
   };
 }
 
+const CHAIN_PRIORITY: Record<string, number> = {
+  solana: 0,
+  ethereum: 1,
+  bsc: 2,
+  base: 3,
+  polygon: 4,
+  arbitrum: 5,
+};
+
 export function sortPairsByLiquidity(pairs: DexPair[]): DexPair[] {
-  return [...pairs].sort(
-    (a, b) => (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0)
-  );
+  return [...pairs].sort((a, b) => {
+    const aChain = CHAIN_PRIORITY[a.chainId] ?? 99;
+    const bChain = CHAIN_PRIORITY[b.chainId] ?? 99;
+    if (aChain !== bChain) return aChain - bChain;
+    return (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0);
+  });
 }
 
 export async function getTokenProfile(address: string): Promise<DexPair | null> {

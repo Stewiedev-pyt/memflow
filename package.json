@@ -7,6 +7,8 @@
     "dev": "tsx watch src/index.ts",
     "bot": "tsx src/index.ts",
     "build": "tsup src/index.ts --format cjs --out-dir dist && node scripts/fix-sqlite.mjs",
+    "build:agent": "tsup src/agent/cli.ts --format cjs --out-dir dist/agent && node scripts/fix-sqlite.mjs",
+    "agent": "tsx src/agent/cli.ts",
     "typecheck": "tsc --noEmit"
   },
   "engines": {

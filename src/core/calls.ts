@@ -27,19 +27,38 @@ export interface CallSignal {
 }
 
 const SEARCH_POOL = [
-  // memes
-  "pepe", "doge", "shib", "bonk", "wif", "mog", "brett", "tremp", "giga",
-  "floki", "ai16z", "fartcoin", "trump", "mew", "myro", "punk", "toshi",
-  "bome", "popcat", "neiro", "coq", "babydoge", "maga", "retardio",
-  // mid-caps
-  "jup", "ray", "jto", "ondo", "ena", "ethfi", "strk", "sei", "sui", "apt",
-  "arb", "op", "matic", "dot", "atom", "link", "uni", "aave", "comp",
-  "mkr", "snx", "crv", "pendle", "dydx", "gmx", "render", "ar", "fet",
-  "near", "icp", "fil", "theta", "eos", "algo", "vet", "hbar", "xrp",
-  "sol", "eth", "bnb", "avax", "ftm",
-  // pump.fun style
-  "pump", "meme", "cat", "dog", "frog", "ape", "moon", "inu", "kitty",
-  "wojak", "chad", "gigachad", "degen", "hippo", "seal", "otter", "quack",
+  // Solana tokens (search by address to force SOL chain)
+  "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263", // PEPE on SOL
+  "ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82", // BONK on SOL
+  "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm", // WIF on SOL
+  "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr", // POPCAT
+  "2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump", // FARTCOIN
+  "HeLp6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC", // AI16Z
+  "2zMMhcVQ6D1EJ45C15cGEM8wHzutUIxNOskDozRMry9F", // MYRO
+  "7BgBvyjrZX1YKz4oh9mjb8ZScatkkwb8DzFx7LoiVkM3", // RETARDIO
+  "A8C3xuqscfmyLrte3VVY7nREpozD7dJoS7PfC6LQ7U9P", // ANDY
+  "3yFwqXBfZY6jC7Yv795225pVqqkB2JWSo5FgC68o69m4", // CHAD
+  // Ethereum tokens
+  "0x6982508145454Ce325dDbE47a25d4ec3d2311933", // PEPE on ETH
+  "0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4c", // SHIB on ETH
+  "0x12970E6868f88f6557B76120662c1B3E50A646bf", // MOG on ETH
+  "0x6B3595068618968D7a50D88F90ed87fabE78C00D", // SNT
+  "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984", // UNI
+  "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9", // AAVE
+  "0xD533a949740bb3306d119CC777fa900bA034cd52", // CRV
+  "0x514910771AF9Ca656af840dff83E8264eCf986CA", // LINK
+  "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", // WBTC
+  // BSC tokens
+  "0xcBF94bC6b2e3158b2bA52CDa73b3F5E8e5A3B9e2", // BABYDOGE on BSC
+  "0x3EE2200Efb3400fAbB6A48b27633fA839B2B4F47", // ADA on BSC
+  "0x7083609fCE4D1d8Dc0C979AAbb8cF8a83787d119", // LINK on BSC
+  "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82", // CAKE
+  "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c", // WBNB
+  // Base tokens
+  "0x4200000000000000000000000000000000000006", // WETH on Base
+  "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", // USDC on Base
+  // Generic searches (catch-all)
+  "solana", "ethereum", "bsc",
 ];
 
 async function fetchSearch(q: string): Promise<any[]> {

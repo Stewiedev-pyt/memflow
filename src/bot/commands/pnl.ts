@@ -4,7 +4,12 @@ import { esc, fmtUsd } from "../format.js";
 
 export async function handlePnl(ctx: Context, query: string): Promise<void> {
   if (!ctx.chat) return;
-  const thinking = await ctx.reply(`📊 generating PNL card for *$${esc(query)}*…`, { parse_mode: "Markdown" });
+  let thinking;
+  try {
+    thinking = await ctx.reply(`📊 generating PNL card for *$${esc(query)}*…`, { parse_mode: "Markdown" });
+  } catch {
+    thinking = await ctx.reply(`📊 generating PNL card for $${query}…`);
+  }
   try {
     const allPairs = sortPairsByLiquidity(await searchPairs(query));
     const best = allPairs.find(
@@ -42,33 +47,32 @@ export async function handlePnl(ctx: Context, query: string): Promise<void> {
       `*1h:* ${change1h !== undefined ? (change1h > 0 ? "+" : "") + change1h.toFixed(1) + "%" : "?"}`,
       `*24h:* ${change24h !== undefined ? (change24h > 0 ? "+" : "") + change24h.toFixed(1) + "%" : "?"}`,
       "",
-      `*Buys/Sells:* ${buys}/${sells} (${buyPressure}% buy pressure)`,
+      `*Buys/Sells:* ${buys}/${sells} (${buyPressure}% buy)`,
       `*Liq/MC:* ${liqMcRatio}%`,
       `*Age:* ${age}`,
-      "",
     ];
 
     if (change24h !== undefined) {
-      if (change24h > 100) lines.push("🚀 *MOONING — but be careful of pump & dump*");
-      else if (change24h > 20) lines.push("📈 *Strong momentum*");
-      else if (change24h > -20) lines.push("➡️ *Consolidating*");
-      else if (change24h > -50) lines.push("📉 *Dropping — buy the dip or catch a knife?*");
-      else lines.push("💀 *Dumping — high risk*");
+      if (change24h > 100) lines.push("", "🚀 *MOONING*");
+      else if (change24h > 20) lines.push("", "📈 *Strong momentum*");
+      else if (change24h > -20) lines.push("", "➡️ *Consolidating*");
+      else if (change24h > -50) lines.push("", "📉 *Dropping*");
+      else lines.push("", "💀 *Dumping*");
     }
 
     if (liq > 0 && mc > 0) {
       const ratio = liq / mc;
-      if (ratio < 0.01) lines.push("⚠️ *Very low liquidity relative to MC*");
+      if (ratio < 0.01) lines.push("⚠️ *Very low liquidity*");
       else if (ratio > 0.1) lines.push("✅ *Healthy liquidity*");
     }
 
-    const card = lines.join("\n");
-    await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, card, { parse_mode: "Markdown" });
+    await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, lines.join("\n"), { parse_mode: "Markdown" });
   } catch (err) {
+    const msg = (err as Error).message;
     try {
-      await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, `⚠️ PNL card failed: ${(err as Error).message}`);
+      await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, `⚠️ PNL card failed: ${msg}`);
     } catch {
-      await ctx.reply(`⚠️ PNL card failed: ${(err as Error).message}`);
+      await ctx.reply(`⚠️ PNL card failed: ${msg}`);
     }
   }
 }
@@ -78,7 +82,7 @@ export function registerPnlCommand(bot: Bot): void {
     if (!ctx.chat) return;
     const query = ctx.match?.trim().replace(/^\$/, "");
     if (!query) {
-      await ctx.reply("📊 Send a *token name or CA* to generate a PNL card.\nUsage: `/pnl pepe`", { parse_mode: "Markdown" });
+      await ctx.reply("📊 Send a token name to generate a PNL card.\nExample: /pnl pepe");
       return;
     }
     await handlePnl(ctx, query);

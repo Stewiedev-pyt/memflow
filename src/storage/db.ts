@@ -35,6 +35,25 @@ CREATE TABLE IF NOT EXISTS alert_chats (
   chat_id INTEGER PRIMARY KEY,
   created_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS recent_scans (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  chat_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  username TEXT,
+  symbol TEXT NOT NULL,
+  pair_address TEXT NOT NULL,
+  chain_id TEXT NOT NULL,
+  scanned_at INTEGER NOT NULL,
+  mcap_at_scan REAL
+);
+CREATE TABLE IF NOT EXISTS scan_leaderboard (
+  user_id INTEGER PRIMARY KEY,
+  username TEXT,
+  scan_count INTEGER DEFAULT 0,
+  first_scan_at INTEGER,
+  last_scan_at INTEGER,
+  best_mcap REAL
+);
 `);
 
 export interface WhaleRow {
@@ -89,6 +108,53 @@ export function saveAlertChat(chatId: number): void {
 
 export function loadAlertChats(): number[] {
   return db.prepare("SELECT chat_id FROM alert_chats").all().map((r: any) => r.chat_id as number);
+}
+
+export interface RecentScan {
+  id: number;
+  chatId: number;
+  userId: number;
+  username: string;
+  symbol: string;
+  pairAddress: string;
+  chainId: string;
+  scannedAt: number;
+  mcapAtScan: number | null;
+}
+
+export function addRecentScan(s: { chatId: number; userId: number; username: string; symbol: string; pairAddress: string; chainId: string; mcap?: number }): void {
+  db.prepare(
+    "INSERT INTO recent_scans (chat_id, user_id, username, symbol, pair_address, chain_id, scanned_at, mcap_at_scan) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+  ).run(s.chatId, s.userId, s.username, s.symbol, s.pairAddress, s.chainId, Date.now(), s.mcap ?? null);
+  db.prepare("DELETE FROM recent_scans WHERE id NOT IN (SELECT id FROM recent_scans ORDER BY scanned_at DESC LIMIT 100)").run();
+}
+
+export function getRecentScans(limit = 10): RecentScan[] {
+  return db.prepare("SELECT * FROM recent_scans ORDER BY scanned_at DESC LIMIT ?").all(limit) as unknown as RecentScan[];
+}
+
+export function updateLeaderboard(s: { userId: number; username: string; mcap?: number }): void {
+  const existing = db.prepare("SELECT user_id FROM scan_leaderboard WHERE user_id = ?").get(s.userId) as { user_id: number } | undefined;
+  if (existing) {
+    db.prepare(
+      "UPDATE scan_leaderboard SET scan_count = scan_count + 1, last_scan_at = ?, username = ?, best_mcap = MAX(COALESCE(best_mcap, 0), COALESCE(?, 0)) WHERE user_id = ?"
+    ).run(Date.now(), s.username, s.mcap ?? null, s.userId);
+  } else {
+    db.prepare(
+      "INSERT INTO scan_leaderboard (user_id, username, scan_count, first_scan_at, last_scan_at, best_mcap) VALUES (?, ?, 1, ?, ?, ?)"
+    ).run(s.userId, s.username, Date.now(), Date.now(), s.mcap ?? null);
+  }
+}
+
+export interface LeaderboardEntry {
+  user_id: number;
+  username: string;
+  scan_count: number;
+  best_mcap: number | null;
+}
+
+export function getLeaderboard(limit = 10): LeaderboardEntry[] {
+  return db.prepare("SELECT user_id, username, scan_count, best_mcap FROM scan_leaderboard ORDER BY scan_count DESC LIMIT ?").all(limit) as unknown as LeaderboardEntry[];
 }
 
 const MAX_SNAPSHOTS = 120;

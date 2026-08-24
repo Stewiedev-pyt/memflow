@@ -78,3 +78,44 @@ export async function getTokenBalance(wallet: string, contract: string): Promise
     return 0;
   }
 }
+
+export interface TokenHolder {
+  address: string;
+  balance: string;
+  pct: number;
+}
+
+export async function getTokenHolders(contract: string, top = 20): Promise<TokenHolder[]> {
+  try {
+    const result = (await callEtherscan({
+      module: "token",
+      action: "tokenholderlist",
+      contractaddress: contract,
+      page: "1",
+      offset: String(top),
+    })) as Array<{ TokenHolderAddress: string; TokenHolderQuantity: string }> | string;
+    if (!Array.isArray(result) || result.length === 0) return [];
+    const totalSupply = result.reduce((s, h) => s + Number(h.TokenHolderQuantity), 0);
+    return result.map((h) => ({
+      address: h.TokenHolderAddress,
+      balance: h.TokenHolderQuantity,
+      pct: totalSupply > 0 ? (Number(h.TokenHolderQuantity) / totalSupply) * 100 : 0,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export async function getContractCreator(address: string): Promise<string | null> {
+  try {
+    const result = (await callEtherscan({
+      module: "contract",
+      action: "getcontractcreation",
+      contractaddresses: address,
+    })) as Array<{ contractCreator: string }> | string;
+    if (Array.isArray(result) && result.length > 0) return result[0].contractCreator;
+    return null;
+  } catch {
+    return null;
+  }
+}

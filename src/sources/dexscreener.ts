@@ -77,3 +77,41 @@ export function sortPairsByLiquidity(pairs: DexPair[]): DexPair[] {
     (a, b) => (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0)
   );
 }
+
+export async function getTokenProfile(address: string): Promise<DexPair | null> {
+  try {
+    const data = await getJson<{ pairs: DexPair[] | null }>(
+      `${BASE}/tokens/${address}`
+    );
+    return data.pairs?.[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export interface NewPair {
+  chainId: string;
+  dexId: string;
+  pairAddress: string;
+  baseToken: { address: string; name: string; symbol: string };
+  priceUsd?: string;
+  marketCap?: number;
+  liquidity?: { usd?: number };
+  volume?: { h1?: number; h6?: number; h24?: number };
+  priceChange?: Record<string, number>;
+  pairCreatedAt?: number;
+}
+
+export async function getNewPairs(chainId: string): Promise<NewPair[]> {
+  try {
+    const res = await fetch(
+      `${BASE}/pairs/${chainId}?sort=pairCreatedAt&order=desc`,
+      { signal: AbortSignal.timeout(15_000) }
+    );
+    if (!res.ok) return [];
+    const data = (await res.json()) as { pairs?: NewPair[] };
+    return (data.pairs ?? []).slice(0, 30);
+  } catch {
+    return [];
+  }
+}

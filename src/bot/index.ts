@@ -14,6 +14,17 @@ import { registerWhaleDiagramCommand } from "./commands/whale-diagram.js";
 import { registerAirdropCommand } from "./commands/airdrop.js";
 import { registerLastCommand } from "./commands/last.js";
 import { registerLeaderboardCommand } from "./commands/leaderboard.js";
+import { registerDevCommand } from "./commands/dev.js";
+import { registerTickerCheckCommand } from "./commands/ticker-check.js";
+import { registerNotableHoldersCommand } from "./commands/notable-holders.js";
+import { registerMarketCommand } from "./commands/market-overview.js";
+import { registerFearCommand } from "./commands/fear.js";
+import { registerRunnersCommand } from "./commands/runners.js";
+import { registerDexUpdateCommand } from "./commands/dexupdate.js";
+import { registerDomainCommand } from "./commands/domain.js";
+import { registerXCheckCommand } from "./commands/xcheck.js";
+import { registerConvertCommand } from "./commands/convert.js";
+import { registerPnlCommand } from "./commands/pnl.js";
 import { handleScan } from "./commands/scan.js";
 import { handleAudit } from "./commands/audit.js";
 import { handleFind } from "./commands/find.js";
@@ -25,6 +36,10 @@ import { handleFirst } from "./commands/first.js";
 import { handleWhaleDiagram } from "./commands/whale-diagram.js";
 import { handleAirdrop } from "./commands/airdrop.js";
 import { handleBrief } from "./commands/brief.js";
+import { handleDev } from "./commands/dev.js";
+import { handleTickerCheck } from "./commands/ticker-check.js";
+import { handleNotableHolders } from "./commands/notable-holders.js";
+import { handleDexUpdate } from "./commands/dexupdate.js";
 import { clearPending, takePending } from "./pending.js";
 import { config } from "../config.js";
 
@@ -46,6 +61,17 @@ export function createBot(): Bot {
   registerAirdropCommand(bot);
   registerLastCommand(bot);
   registerLeaderboardCommand(bot);
+  registerDevCommand(bot);
+  registerTickerCheckCommand(bot);
+  registerNotableHoldersCommand(bot);
+  registerMarketCommand(bot);
+  registerFearCommand(bot);
+  registerRunnersCommand(bot);
+  registerDexUpdateCommand(bot);
+  registerDomainCommand(bot);
+  registerXCheckCommand(bot);
+  registerConvertCommand(bot);
+  registerPnlCommand(bot);
 
   bot.command("cancel", async (ctx) => {
     if (!ctx.chat) return;
@@ -69,6 +95,10 @@ export function createBot(): Bot {
     if (kind === "wd") return handleWhaleDiagram(ctx, text);
     if (kind === "ad") return handleAirdrop(ctx, text);
     if (kind === "brief") return handleBrief(ctx, text);
+    if (kind === "dev") return handleDev(ctx, text);
+    if (kind === "tc") return handleTickerCheck(ctx, text);
+    if (kind === "nh") return handleNotableHolders(ctx, text);
+    if (kind === "dp") return handleDexUpdate(ctx, text);
     await ctx.reply("Something went wrong. Try /cancel and start again.");
   });
 
@@ -78,6 +108,9 @@ export function createBot(): Bot {
     { command: "find", description: "Find the REAL token among clones" },
     { command: "brief", description: "Technicals + news briefing" },
     { command: "audit", description: "Security audit of a contract" },
+    { command: "dev", description: "Check deployer history & rugs" },
+    { command: "tc", description: "Ticker check — find copycats" },
+    { command: "nh", description: "Notable holders by category" },
     { command: "holders", description: "Top 20 holders of a token" },
     { command: "top", description: "Top 10 traders by volume" },
     { command: "snipers", description: "Who sniped at launch" },
@@ -87,6 +120,14 @@ export function createBot(): Bot {
     { command: "watch", description: "Track a token - get flow alerts" },
     { command: "watchlist", description: "Show tracked tokens" },
     { command: "unwatch", description: "Stop tracking a token" },
+    { command: "dp", description: "DexScreener profile & socials" },
+    { command: "i", description: "Global market overview" },
+    { command: "fear", description: "Fear & Greed Index" },
+    { command: "runners", description: "Tokens that crossed $100K MC" },
+    { command: "pnl", description: "PNL card for a token" },
+    { command: "v", description: "Convert token amount to USD" },
+    { command: "do", description: "Domain age & registration check" },
+    { command: "x", description: "Check for recycled X accounts" },
     { command: "last", description: "Last 10 scanned tokens" },
     { command: "lb", description: "Top scanners leaderboard" },
     { command: "ping", description: "Check memflow is alive" },

@@ -48,6 +48,7 @@ const INPUT_SCHEMA = {
 const DEMO = {
   input_data: { text: "scan PEPE" },
   output_data: {
+    agent: "stewie",
     action: "scan",
     data: {
       symbol: "PEPE",
@@ -272,6 +273,25 @@ export function createMasumiServer(port = 8080): express.Express {
       job.error = (err as Error).message;
     }
   }
+
+  // ─── AGENT INFO (discovery) ─────────────────────────────
+  app.get("/info", (_req, res) => {
+    res.json({
+      name: "stewie",
+      description: "Meme token intelligence agent — scan, audit, track, and find trading signals on Solana, ETH, BNB, and Base.",
+      version: "1.0.0",
+      capabilities: [
+        "token scanning",
+        "security audit",
+        "holder analysis",
+        "trading calls",
+        "gem finder",
+        "market overview",
+        "news",
+      ],
+      chains: ["solana", "ethereum", "bsc", "base"],
+    });
+  });
 
   // ─── CLEANUP ────────────────────────────────────────────
   setInterval(() => {

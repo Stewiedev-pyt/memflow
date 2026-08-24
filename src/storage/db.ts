@@ -72,7 +72,7 @@ export function replaceWhales(pairAddress: string, tokenAddress: string, rows: W
 
 export function getWhales(pairAddress: string): WhaleRow[] {
   return db
-    .prepare("SELECT wallet, balance, price_at_track FROM whales WHERE pair_address = ?")
+    .prepare("SELECT wallet, balance, price_at_track AS priceAtTrack FROM whales WHERE pair_address = ?")
     .all(pairAddress) as unknown as WhaleRow[];
 }
 
@@ -98,7 +98,7 @@ export function removeWatched(pairAddress: string): boolean {
 
 export function listWatched(): WatchedPair[] {
   return db
-    .prepare("SELECT pair_address, chain_id, symbol, added_at FROM watched ORDER BY added_at DESC")
+    .prepare("SELECT pair_address AS pairAddress, chain_id AS chainId, symbol, added_at AS addedAt FROM watched ORDER BY added_at DESC")
     .all() as unknown as WatchedPair[];
 }
 
@@ -130,7 +130,7 @@ export function addRecentScan(s: { chatId: number; userId: number; username: str
 }
 
 export function getRecentScans(limit = 10): RecentScan[] {
-  return db.prepare("SELECT * FROM recent_scans ORDER BY scanned_at DESC LIMIT ?").all(limit) as unknown as RecentScan[];
+  return db.prepare("SELECT chat_id AS chatId, user_id AS userId, username, symbol, pair_address AS pairAddress, chain_id AS chainId, scanned_at AS scannedAt, mcap_at_scan AS mcapAtScan FROM recent_scans ORDER BY scanned_at DESC LIMIT ?")    .all(limit) as unknown as RecentScan[];
 }
 
 export function updateLeaderboard(s: { userId: number; username: string; mcap?: number }): void {

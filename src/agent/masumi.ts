@@ -84,6 +84,11 @@ export function createMasumiServer(port = 8080): express.Express {
     next();
   });
 
+  // Legacy health check (Railway compatibility)
+  app.get("/", (_req, res) => {
+    res.json({ ok: true, uptime: Math.round(process.uptime()) });
+  });
+
   /**
    * GET /availability — Health check
    * Required by MIP-003. Must return { status: "ok" } when service is operational.

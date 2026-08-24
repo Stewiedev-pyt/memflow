@@ -1,7 +1,6 @@
 import { createBot, initBot, runPolling } from "./bot/index.js";
 import { logSecretFingerprints, reportSources } from "./config.js";
 import { startWatchEngine } from "./watch/engine.js";
-import { startHealthServer } from "./health.js";
 import { createMasumiServer } from "./agent/masumi.js";
 
 async function main() {
@@ -9,12 +8,9 @@ async function main() {
   for (const line of reportSources()) console.log(`   ${line}`);
   logSecretFingerprints();
 
-  // Start Masumi MIP-003 agent server
+  // Start Masumi MIP-003 agent server (includes health check on /availability)
   const port = parseInt(process.env.PORT ?? "8080", 10);
   createMasumiServer(port);
-
-  // Start health server on different port
-  startHealthServer();
 
   // Start Telegram bot
   const bot = createBot();

@@ -5,6 +5,7 @@ interface Gem {
   name: string;
   chainId: string;
   pairAddress: string;
+  tokenAddress: string;
   mcap: number;
   liquidityUsd: number;
   volH24: number;
@@ -105,6 +106,7 @@ async function scanGems(): Promise<Gem[]> {
             name: p.baseToken.name,
             chainId: p.chainId,
             pairAddress: p.pairAddress,
+            tokenAddress: p.baseToken.address,
             mcap: mc,
             liquidityUsd: liq,
             volH24: vol,
@@ -157,6 +159,7 @@ export async function handleGems(ctx: Context): Promise<void> {
         `${arrow} *${esc(g.symbol)}* (${g.chainId}) — score *${g.score}*`,
         `  MC ${fmt(g.mcap)} · liq ${fmt(g.liquidityUsd)} · vol ${fmt(g.volH24)}`,
         `  liq/mc ${(g.liqMcRatio * 100).toFixed(1)}% · buys ${(g.buyPressure * 100).toFixed(0)}% · age ${age} · ${pct}`,
+        `  CA: \`${g.tokenAddress}\``,
         flags,
         ""
       );

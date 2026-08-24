@@ -6,6 +6,7 @@ import { setPending } from "../pending.js";
 
 export async function handleWatch(ctx: Context, query: string): Promise<void> {
   if (!ctx.chat) return;
+  registerAlertChat(ctx.chat.id);
   const thinking = await ctx.reply(`📡 setting up watch on *${query}*...`, { parse_mode: "Markdown" });
   try {
     let pair = null;

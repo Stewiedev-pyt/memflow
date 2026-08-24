@@ -17,6 +17,8 @@ import { registerMarketCommand } from "./commands/market-overview.js";
 import { registerFearCommand } from "./commands/fear.js";
 import { registerRunnersCommand } from "./commands/runners.js";
 import { registerPnlCommand } from "./commands/pnl.js";
+import { registerVlCommand, handleVl } from "./commands/vl.js";
+import { registerGemsCommand } from "./commands/gems.js";
 import { clearPending, takePending } from "./pending.js";
 import { config } from "../config.js";
 
@@ -41,6 +43,8 @@ export function createBot(): Bot {
   registerFearCommand(bot);
   registerRunnersCommand(bot);
   registerPnlCommand(bot);
+  registerVlCommand(bot);
+  registerGemsCommand(bot);
 
   bot.command("cancel", async (ctx) => {
     if (!ctx.chat) return;
@@ -67,6 +71,7 @@ export function createBot(): Bot {
     if (kind === "dev") return handleDev(ctx, text);
     if (kind === "tc") return handleTickerCheck(ctx, text);
     if (kind === "nh") return handleNotableHolders(ctx, text);
+    if (kind === "vl") return handleVl(ctx, text);
     await ctx.reply("Something went wrong. Try /cancel and start again.");
   });
 
@@ -91,6 +96,8 @@ export function createBot(): Bot {
     { command: "fear", description: "Fear & Greed Index" },
     { command: "runners", description: "Tokens that crossed $100K MC" },
     { command: "pnl", description: "PNL card for a token" },
+    { command: "vl", description: "Volume + Liquidity analysis" },
+    { command: "gems", description: "Find low MC gems to buy early" },
     { command: "cancel", description: "Cancel the current prompt" },
   ]);
 

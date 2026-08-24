@@ -78,6 +78,12 @@ export function createMasumiServer(port = 8080): express.Express {
 
   // ─── MIP-003 ENDPOINTS ─────────────────────────────────
 
+  // Request logger
+  app.use((req, _res, next) => {
+    console.log(`[masumi] ${new Date().toISOString()} ${req.method} ${req.url}`);
+    next();
+  });
+
   /**
    * GET /availability — Health check
    * Required by MIP-003. Must return { status: "ok" } when service is operational.
@@ -139,6 +145,11 @@ export function createMasumiServer(port = 8080): express.Express {
       };
 
       jobs.set(job.id, job);
+
+      console.log(`[masumi] 📥 NEW JOB: ${job.id}`);
+      console.log(`[masumi]    Input: "${text}"`);
+      console.log(`[masumi]    Purchaser: ${identifier_from_purchaser ?? "unknown"}`);
+      console.log(`[masumi]    Blockchain ID: ${blockchainIdentifier}`);
 
       // MIP-003 response format
       res.json({
@@ -253,6 +264,7 @@ export function createMasumiServer(port = 8080): express.Express {
   }
 
   async function processJob(job: Job, text: string) {
+    console.log(`[masumi] ⏳ Processing job ${job.id}: "${text}"`);
     try {
       const response = await agent.process(text);
 
@@ -264,13 +276,16 @@ export function createMasumiServer(port = 8080): express.Express {
         };
         job.resultHash = computeResultHash(job.result);
         job.status = "completed";
+        console.log(`[masumi] ✅ Job ${job.id} completed — action: ${response.action}`);
       } else {
         job.status = "failed";
         job.error = response.error;
+        console.log(`[masumi] ❌ Job ${job.id} failed: ${response.error}`);
       }
     } catch (err) {
       job.status = "failed";
       job.error = (err as Error).message;
+      console.log(`[masumi] ❌ Job ${job.id} error: ${(err as Error).message}`);
     }
   }
 

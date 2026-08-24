@@ -24,6 +24,7 @@ import { handleSnipers } from "./commands/snipers.js";
 import { handleFirst } from "./commands/first.js";
 import { handleWhaleDiagram } from "./commands/whale-diagram.js";
 import { handleAirdrop } from "./commands/airdrop.js";
+import { handleBrief } from "./commands/brief.js";
 import { clearPending, takePending } from "./pending.js";
 import { config } from "../config.js";
 
@@ -47,6 +48,7 @@ export function createBot(): Bot {
   registerLeaderboardCommand(bot);
 
   bot.command("cancel", async (ctx) => {
+    if (!ctx.chat) return;
     clearPending(ctx.chat.id);
     await ctx.reply("👌 cancelled.");
   });
@@ -66,7 +68,8 @@ export function createBot(): Bot {
     if (kind === "first") return handleFirst(ctx, text);
     if (kind === "wd") return handleWhaleDiagram(ctx, text);
     if (kind === "ad") return handleAirdrop(ctx, text);
-    return handleWatch(ctx, text);
+    if (kind === "brief") return handleBrief(ctx, text);
+    await ctx.reply("Something went wrong. Try /cancel and start again.");
   });
 
   void bot.api.setMyCommands([

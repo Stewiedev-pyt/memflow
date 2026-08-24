@@ -4,6 +4,7 @@ import { getTokenLargestAccounts } from "../../sources/helius.js";
 import { getTokenHolders as getEthHolders } from "../../sources/etherscan.js";
 import { isEvmAddress } from "../../sources/honeypot.js";
 import { setPending } from "../pending.js";
+import { esc } from "../format.js";
 
 function fmtPct(n: number): string {
   if (n >= 1) return n.toFixed(1) + "%";
@@ -52,7 +53,7 @@ export async function handleHolders(ctx: Context, address: string): Promise<void
     });
 
     const card = truncate([
-      `🐋 *TOP ${holders.length} HOLDERS — ${symbol}* (${chainId})`,
+      `🐋 *TOP ${holders.length} HOLDERS — ${esc(symbol)}* (${chainId})`,
       "",
       ...lines,
       "",
@@ -77,7 +78,7 @@ export function registerHoldersCommand(bot: Bot): void {
     if (!ctx.chat) return;
     const address = ctx.match?.trim();
     if (!address) {
-      setPending(ctx.chat.id, "holders" as any);
+      setPending(ctx.chat.id, "holders");
       await ctx.reply(
         " whale Send me a *contract address* to see top holders.\n\nWorks on SOL · ETH · BSC · Base",
         { parse_mode: "Markdown" }

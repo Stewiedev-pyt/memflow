@@ -2,6 +2,7 @@ import { Bot, Context } from "grammy";
 import { searchPairs, sortPairsByLiquidity } from "../../sources/dexscreener.js";
 import { toGeckoNetwork, getPoolTrades } from "../../sources/geckoterminal.js";
 import { setPending } from "../pending.js";
+import { esc } from "../format.js";
 
 function truncate(text: string, max = 4000): string {
   if (text.length <= max) return text;
@@ -34,7 +35,7 @@ export async function handleSnipers(ctx: Context, address: string): Promise<void
 
     const trades = await getPoolTrades(network, best.pairAddress, 0);
     if (trades.length === 0) {
-      await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, `No trades found for ${best.baseToken.symbol}.`);
+      await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, `No trades found for ${esc(best.baseToken.symbol)}.`);
       return;
     }
 
@@ -52,9 +53,9 @@ export async function handleSnipers(ctx: Context, address: string): Promise<void
     });
 
     const card = truncate([
-      ` SNIPER REPORT — *${best.baseToken.symbol}* (${best.chainId})`,
+      ` SNIPER REPORT — *${esc(best.baseToken.symbol)}* (${best.chainId})`,
       "",
-      `*${uniqueSnipers}* snipers bought in first 3 seconds`,
+      `*${uniqueSnipers}* snipers bought in first 30 seconds`,
       `total sniped: *${fmtUsd(totalSnipedUsd)}*`,
       "",
       ...lines,
@@ -80,7 +81,7 @@ export function registerSnipersCommand(bot: Bot): void {
     if (!ctx.chat) return;
     const address = ctx.match?.trim();
     if (!address) {
-      setPending(ctx.chat.id, "snipers" as any);
+      setPending(ctx.chat.id, "snipers");
       await ctx.reply(
         " Send me a *contract address* to see sniper activity.\n\nWorks on SOL · ETH · BSC · Base",
         { parse_mode: "Markdown" }

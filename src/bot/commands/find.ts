@@ -1,6 +1,7 @@
 import { Bot, Context } from "grammy";
 import { findRealToken } from "../../core/finder.js";
 import { setPending } from "../pending.js";
+import { esc } from "../format.js";
 
 function fmtUsd(n?: number): string {
   if (n === undefined || !Number.isFinite(n)) return "?";
@@ -39,7 +40,7 @@ export async function handleFind(ctx: Context, rawQuery: string): Promise<void> 
     const lines = result.candidates.map((c) => {
       const cg = c.cgRank ? `✅ CoinGecko #${c.cgRank}` : c.hasTwitter ? "✅ twitter linked" : "⚠️ no socials";
       return [
-        `${c.verdict} *${c.symbol}* — ${c.chains.join(", ")}`,
+        `${c.verdict} *${esc(c.symbol)}* — ${c.chains.join(", ")}`,
         `   liq ${fmtUsd(c.bestLiqUsd)} · mcap ${fmtUsd(c.mcap)} · ${ageStr(c.ageDays)}`,
         `   \`${c.address.slice(0, 14)}…\` · ${cg}`,
       ].join("\n");
@@ -61,6 +62,7 @@ export async function handleFind(ctx: Context, rawQuery: string): Promise<void> 
 
 export function registerFindCommand(bot: Bot): void {
   bot.command("find", async (ctx) => {
+    if (!ctx.chat) return;
     const query = ctx.match?.trim().replace(/^\$/, "");
     if (!query || query.length > 20) {
       setPending(ctx.chat.id, "find");

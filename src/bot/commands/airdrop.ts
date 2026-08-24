@@ -83,7 +83,7 @@ export function registerAirdropCommand(bot: Bot): void {
     if (!ctx.chat) return;
     const address = ctx.match?.trim();
     if (!address) {
-      setPending(ctx.chat.id, "ad" as any);
+      setPending(ctx.chat.id, "ad");
       await ctx.reply(
         " Send me a *contract address* to check for airdrop activity.\n\nWorks on SOL · ETH · BSC · Base",
         { parse_mode: "Markdown" }

@@ -4,6 +4,7 @@ import { getTokenLargestAccounts } from "../../sources/helius.js";
 import { getTokenHolders as getEthHolders } from "../../sources/etherscan.js";
 import { isEvmAddress } from "../../sources/honeypot.js";
 import { setPending } from "../pending.js";
+import { esc } from "../format.js";
 
 function truncate(text: string, max = 4000): string {
   if (text.length <= max) return text;
@@ -49,7 +50,7 @@ export async function handleWhaleDiagram(ctx: Context, address: string): Promise
     const top10 = holders.slice(0, 10).reduce((s, h) => s + h.pct, 0).toFixed(1);
 
     const card = truncate([
-      ` WHALE DIAGRAM — *${symbol}* (${chainId})`,
+      ` WHALE DIAGRAM — *${esc(symbol)}* (${chainId})`,
       "",
       diagram,
       "",
@@ -78,7 +79,7 @@ export function registerWhaleDiagramCommand(bot: Bot): void {
     if (!ctx.chat) return;
     const address = ctx.match?.trim();
     if (!address) {
-      setPending(ctx.chat.id, "wd" as any);
+      setPending(ctx.chat.id, "wd");
       await ctx.reply(
         " Send me a *contract address* to see the whale diagram.\n\nWorks on SOL · ETH · BSC · Base",
         { parse_mode: "Markdown" }

@@ -68,6 +68,7 @@ export async function handleAudit(ctx: Context, address: string): Promise<void> 
 
 export function registerAuditCommand(bot: Bot): void {
   bot.command("audit", async (ctx) => {
+    if (!ctx.chat) return;
     const address = ctx.match?.trim();
     if (!address) {
       setPending(ctx.chat.id, "audit");

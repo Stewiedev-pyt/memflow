@@ -5,6 +5,7 @@ import { getContractCreator as getEthCreator } from "../../sources/etherscan.js"
 import { isEvmAddress } from "../../sources/honeypot.js";
 import { addRecentScan, updateLeaderboard } from "../../storage/db.js";
 import { setPending } from "../pending.js";
+import { esc } from "../format.js";
 
 function fmtUsd(n?: number): string {
   if (n === undefined) return "?";
@@ -67,7 +68,7 @@ export async function handleScan(ctx: Context, query: string): Promise<void> {
     const sells = best.txns?.h24?.sells ?? 0;
 
     const lines: string[] = [
-      `🔍 *${best.baseToken.symbol}* on ${best.chainId} / ${best.dexId}${changeStr}`,
+      `🔍 *${esc(best.baseToken.symbol)}* on ${best.chainId} / ${best.dexId}${changeStr}`,
       "",
       `price: ${best.priceUsd ? "$" + best.priceUsd : "?"} · liq: ${fmtUsd(best.liquidity?.usd)} · mcap: ${fmtUsd(best.marketCap)}`,
       `vol24: ${fmtUsd(best.volume?.h24)} · txns: ${buys}b/${sells}s · age: ${age(best.pairCreatedAt)}`,
@@ -82,7 +83,7 @@ export async function handleScan(ctx: Context, query: string): Promise<void> {
     if (pairs.length > 1) {
       lines.push("", "*Other pairs:*");
       for (const p of pairs.slice(1, 5)) {
-        lines.push(`• ${p.baseToken.symbol} — liq ${fmtUsd(p.liquidity?.usd)} · mcap ${fmtUsd(p.marketCap)}`);
+        lines.push(`• ${esc(p.baseToken.symbol)} — liq ${fmtUsd(p.liquidity?.usd)} · mcap ${fmtUsd(p.marketCap)}`);
       }
     }
 
@@ -93,16 +94,18 @@ export async function handleScan(ctx: Context, query: string): Promise<void> {
     });
 
     if (ctx.from) {
-      addRecentScan({
-        chatId: ctx.chat.id,
-        userId: ctx.from.id,
-        username: ctx.from.username ?? ctx.from.first_name,
-        symbol: best.baseToken.symbol,
-        pairAddress: best.pairAddress,
-        chainId: best.chainId,
-        mcap: best.marketCap,
-      });
-      updateLeaderboard({ userId: ctx.from.id, username: ctx.from.username ?? ctx.from.first_name, mcap: best.marketCap });
+      try {
+        addRecentScan({
+          chatId: ctx.chat.id,
+          userId: ctx.from.id,
+          username: ctx.from.username ?? ctx.from.first_name,
+          symbol: best.baseToken.symbol,
+          pairAddress: best.pairAddress,
+          chainId: best.chainId,
+          mcap: best.marketCap,
+        });
+        updateLeaderboard({ userId: ctx.from.id, username: ctx.from.username ?? ctx.from.first_name, mcap: best.marketCap });
+      } catch { /* non-critical */ }
     }
   } catch (err) {
     try {
@@ -115,6 +118,7 @@ export async function handleScan(ctx: Context, query: string): Promise<void> {
 
 export function registerScanCommand(bot: Bot): void {
   bot.command("scan", async (ctx) => {
+    if (!ctx.chat) return;
     const query = ctx.match?.trim();
     if (!query) {
       setPending(ctx.chat.id, "scan");

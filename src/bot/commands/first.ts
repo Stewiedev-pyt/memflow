@@ -2,6 +2,7 @@ import { Bot, Context } from "grammy";
 import { searchPairs, sortPairsByLiquidity } from "../../sources/dexscreener.js";
 import { toGeckoNetwork, getPoolTrades } from "../../sources/geckoterminal.js";
 import { setPending } from "../pending.js";
+import { esc } from "../format.js";
 
 function truncate(text: string, max = 4000): string {
   if (text.length <= max) return text;
@@ -34,7 +35,7 @@ export async function handleFirst(ctx: Context, address: string): Promise<void> 
 
     const trades = await getPoolTrades(network, best.pairAddress, 0);
     if (trades.length === 0) {
-      await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, `No trades found for ${best.baseToken.symbol}.`);
+      await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, `No trades found for ${esc(best.baseToken.symbol)}.`);
       return;
     }
 
@@ -46,7 +47,7 @@ export async function handleFirst(ctx: Context, address: string): Promise<void> 
     });
 
     const card = truncate([
-      ` FIRST 20 BUYERS — *${best.baseToken.symbol}* (${best.chainId})`,
+      ` FIRST 20 BUYERS — *${esc(best.baseToken.symbol)}* (${best.chainId})`,
       "",
       ...lines,
       "",
@@ -71,7 +72,7 @@ export function registerFirstCommand(bot: Bot): void {
     if (!ctx.chat) return;
     const address = ctx.match?.trim();
     if (!address) {
-      setPending(ctx.chat.id, "first" as any);
+      setPending(ctx.chat.id, "first");
       await ctx.reply(
         " Send me a *contract address* to see the first buyers.\n\nWorks on SOL · ETH · BSC · Base",
         { parse_mode: "Markdown" }

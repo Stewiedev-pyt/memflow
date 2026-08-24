@@ -41,7 +41,7 @@ export async function handleWatch(ctx: Context, query: string): Promise<void> {
 
 export function registerWatchCommands(bot: Bot): void {
   bot.command("watch", async (ctx) => {
-    registerAlertChat(ctx.chat.id);
+    if (!ctx.chat) return;
     const query = ctx.match?.trim();
     if (!query) {
       setPending(ctx.chat.id, "watch");
@@ -51,10 +51,12 @@ export function registerWatchCommands(bot: Bot): void {
       );
       return;
     }
+    registerAlertChat(ctx.chat.id);
     await handleWatch(ctx, query);
   });
 
   bot.command("unwatch", async (ctx) => {
+    if (!ctx.chat) return;
     const q = ctx.match?.trim().toLowerCase();
     const all = listWatched();
     if (all.length === 0) {
@@ -75,6 +77,7 @@ export function registerWatchCommands(bot: Bot): void {
   });
 
   bot.command("watchlist", async (ctx) => {
+    if (!ctx.chat) return;
     registerAlertChat(ctx.chat.id);
     const all = listWatched();
     if (all.length === 0) {

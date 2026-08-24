@@ -1,53 +1,28 @@
 import { Bot, Context } from "grammy";
-import { registerStartCommand } from "./commands/start.js";
-import { registerPingCommand } from "./commands/ping.js";
-import { registerScanCommand } from "./commands/scan.js";
-import { registerWatchCommands } from "./commands/watch.js";
-import { registerAuditCommand } from "./commands/audit.js";
-import { registerFindCommand } from "./commands/find.js";
-import { registerBriefCommand } from "./commands/brief.js";
-import { registerHoldersCommand } from "./commands/holders.js";
-import { registerTopCommand } from "./commands/top.js";
-import { registerSnipersCommand } from "./commands/snipers.js";
-import { registerFirstCommand } from "./commands/first.js";
-import { registerWhaleDiagramCommand } from "./commands/whale-diagram.js";
-import { registerAirdropCommand } from "./commands/airdrop.js";
-import { registerLastCommand } from "./commands/last.js";
-import { registerLeaderboardCommand } from "./commands/leaderboard.js";
-import { registerDevCommand } from "./commands/dev.js";
-import { registerTickerCheckCommand } from "./commands/ticker-check.js";
-import { registerNotableHoldersCommand } from "./commands/notable-holders.js";
+import { registerScanCommand, handleScan } from "./commands/scan.js";
+import { registerWatchCommands, handleWatch } from "./commands/watch.js";
+import { registerAuditCommand, handleAudit } from "./commands/audit.js";
+import { registerFindCommand, handleFind } from "./commands/find.js";
+import { registerBriefCommand, handleBrief } from "./commands/brief.js";
+import { registerHoldersCommand, handleHolders } from "./commands/holders.js";
+import { registerTopCommand, handleTop } from "./commands/top.js";
+import { registerSnipersCommand, handleSnipers } from "./commands/snipers.js";
+import { registerFirstCommand, handleFirst } from "./commands/first.js";
+import { registerWhaleDiagramCommand, handleWhaleDiagram } from "./commands/whale-diagram.js";
+import { registerAirdropCommand, handleAirdrop } from "./commands/airdrop.js";
+import { registerDevCommand, handleDev } from "./commands/dev.js";
+import { registerTickerCheckCommand, handleTickerCheck } from "./commands/ticker-check.js";
+import { registerNotableHoldersCommand, handleNotableHolders } from "./commands/notable-holders.js";
 import { registerMarketCommand } from "./commands/market-overview.js";
 import { registerFearCommand } from "./commands/fear.js";
 import { registerRunnersCommand } from "./commands/runners.js";
-import { registerDexUpdateCommand } from "./commands/dexupdate.js";
-import { registerDomainCommand } from "./commands/domain.js";
-import { registerXCheckCommand } from "./commands/xcheck.js";
-import { registerConvertCommand } from "./commands/convert.js";
 import { registerPnlCommand } from "./commands/pnl.js";
-import { handleScan } from "./commands/scan.js";
-import { handleAudit } from "./commands/audit.js";
-import { handleFind } from "./commands/find.js";
-import { handleWatch } from "./commands/watch.js";
-import { handleHolders } from "./commands/holders.js";
-import { handleTop } from "./commands/top.js";
-import { handleSnipers } from "./commands/snipers.js";
-import { handleFirst } from "./commands/first.js";
-import { handleWhaleDiagram } from "./commands/whale-diagram.js";
-import { handleAirdrop } from "./commands/airdrop.js";
-import { handleBrief } from "./commands/brief.js";
-import { handleDev } from "./commands/dev.js";
-import { handleTickerCheck } from "./commands/ticker-check.js";
-import { handleNotableHolders } from "./commands/notable-holders.js";
-import { handleDexUpdate } from "./commands/dexupdate.js";
 import { clearPending, takePending } from "./pending.js";
 import { config } from "../config.js";
 
 export function createBot(): Bot {
   const bot = new Bot(config.telegramToken);
 
-  registerStartCommand(bot);
-  registerPingCommand(bot);
   registerScanCommand(bot);
   registerWatchCommands(bot);
   registerAuditCommand(bot);
@@ -59,18 +34,12 @@ export function createBot(): Bot {
   registerFirstCommand(bot);
   registerWhaleDiagramCommand(bot);
   registerAirdropCommand(bot);
-  registerLastCommand(bot);
-  registerLeaderboardCommand(bot);
   registerDevCommand(bot);
   registerTickerCheckCommand(bot);
   registerNotableHoldersCommand(bot);
   registerMarketCommand(bot);
   registerFearCommand(bot);
   registerRunnersCommand(bot);
-  registerDexUpdateCommand(bot);
-  registerDomainCommand(bot);
-  registerXCheckCommand(bot);
-  registerConvertCommand(bot);
   registerPnlCommand(bot);
 
   bot.command("cancel", async (ctx) => {
@@ -98,13 +67,11 @@ export function createBot(): Bot {
     if (kind === "dev") return handleDev(ctx, text);
     if (kind === "tc") return handleTickerCheck(ctx, text);
     if (kind === "nh") return handleNotableHolders(ctx, text);
-    if (kind === "dp") return handleDexUpdate(ctx, text);
     await ctx.reply("Something went wrong. Try /cancel and start again.");
   });
 
   void bot.api.setMyCommands([
-    { command: "start", description: "Introduce memflow" },
-    { command: "scan", description: "Scan a token (price, liq, chart, creator)" },
+    { command: "scan", description: "Scan a token — price, liq, chart, creator" },
     { command: "find", description: "Find the REAL token among clones" },
     { command: "brief", description: "Technicals + news briefing" },
     { command: "audit", description: "Security audit of a contract" },
@@ -117,20 +84,13 @@ export function createBot(): Bot {
     { command: "first", description: "First 20 buyers at launch" },
     { command: "wd", description: "Whale diagram — visual holder map" },
     { command: "ad", description: "Airdrop report — check for dumpers" },
-    { command: "watch", description: "Track a token - get flow alerts" },
+    { command: "watch", description: "Track a token — get flow alerts" },
     { command: "watchlist", description: "Show tracked tokens" },
     { command: "unwatch", description: "Stop tracking a token" },
-    { command: "dp", description: "DexScreener profile & socials" },
     { command: "i", description: "Global market overview" },
     { command: "fear", description: "Fear & Greed Index" },
     { command: "runners", description: "Tokens that crossed $100K MC" },
     { command: "pnl", description: "PNL card for a token" },
-    { command: "v", description: "Convert token amount to USD" },
-    { command: "do", description: "Domain age & registration check" },
-    { command: "x", description: "Check for recycled X accounts" },
-    { command: "last", description: "Last 10 scanned tokens" },
-    { command: "lb", description: "Top scanners leaderboard" },
-    { command: "ping", description: "Check memflow is alive" },
     { command: "cancel", description: "Cancel the current prompt" },
   ]);
 

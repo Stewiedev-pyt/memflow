@@ -12,14 +12,16 @@ interface Runner {
   ageHours: number;
 }
 
+const SEARCH_QUERIES = ["pepe", "doge", "shib", "bonk", "wif", "mog", "brett", "tremp", "giga", "floki", "ai16z", "fartcoin", "trump"];
+
 async function findRunners(): Promise<Runner[]> {
-  const chains = ["solana", "ethereum", "base", "bsc"];
+  const seen = new Set<string>();
   const results: Runner[] = [];
 
-  for (const chain of chains) {
+  for (const q of SEARCH_QUERIES) {
     try {
       const res = await fetch(
-        `https://api.dexscreener.com/latest/dex/pairs/${chain}?sort=pairCreatedAt&order=desc`,
+        `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(q)}`,
         { signal: AbortSignal.timeout(15_000) }
       );
       if (!res.ok) continue;
@@ -34,38 +36,43 @@ async function findRunners(): Promise<Runner[]> {
         pairCreatedAt?: number;
       }> };
       for (const p of data.pairs ?? []) {
+        if (seen.has(p.pairAddress)) continue;
+        seen.add(p.pairAddress);
         const mc = p.marketCap ?? 0;
+        const liq = p.liquidity?.usd ?? 0;
+        const vol = p.volume?.h24 ?? 0;
         const ageMs = p.pairCreatedAt ? Date.now() - p.pairCreatedAt : Infinity;
         const ageHours = ageMs / 3_600_000;
-        if (mc >= 100_000 && mc <= 5_000_000 && ageHours <= 48) {
-          results.push({
-            chainId: p.chainId,
-            pairAddress: p.pairAddress,
-            symbol: p.baseToken.symbol,
-            name: p.baseToken.name,
-            mcap: mc,
-            liquidityUsd: p.liquidity?.usd ?? 0,
-            volH24: p.volume?.h24 ?? 0,
-            priceChange24h: p.priceChange?.h24 ?? 0,
-            ageHours,
-          });
-        }
+        if (liq <= 0 && vol <= 0) continue;
+        // Only show recent or high-volume pairs
+        if (ageHours > 720 && vol < 100_000) continue;
+        results.push({
+          chainId: p.chainId,
+          pairAddress: p.pairAddress,
+          symbol: p.baseToken.symbol,
+          name: p.baseToken.name,
+          mcap: mc,
+          liquidityUsd: liq,
+          volH24: vol,
+          priceChange24h: p.priceChange?.h24 ?? 0,
+          ageHours,
+        });
       }
     } catch {
       continue;
     }
   }
 
-  return results.sort((a, b) => b.mcap - a.mcap).slice(0, 20);
+  return results.sort((a, b) => b.volH24 - a.volH24).slice(0, 30);
 }
 
 export async function handleRunners(ctx: Context): Promise<void> {
   if (!ctx.chat) return;
-  const thinking = await ctx.reply("🏃 scanning for runners across chains…");
+  const thinking = await ctx.reply("🏃 scanning trending tokens across all chains…");
   try {
     const runners = await findRunners();
     if (runners.length === 0) {
-      await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, "No notable runners found in the last 48h.");
+      await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, "No active pairs found. Try again in a minute.");
       return;
     }
 
@@ -76,35 +83,40 @@ export async function handleRunners(ctx: Context): Promise<void> {
     };
 
     const lines: string[] = [
-      "🏃 *RUNNERS — tokens that crossed $100K MC*",
-      `*${runners.length}* tokens found (last 48h):`,
+      `🏃 *TRENDING TOKENS — all chains*`,
+      `*${runners.length}* active pairs · sorted by volume`,
       "",
     ];
 
-    for (const r of runners.slice(0, 15)) {
-      const arrow = r.priceChange24h > 0 ? "🟢" : "🔴";
-      const pct = r.priceChange24h > 0 ? `+${r.priceChange24h.toFixed(0)}%` : `${r.priceChange24h.toFixed(0)}%`;
-      const age = r.ageHours < 1 ? `${(r.ageHours * 60).toFixed(0)}m` : `${r.ageHours.toFixed(0)}h`;
-      lines.push(
-        `${arrow} *$${esc(r.symbol)}* (${r.chainId}) — ${age} old`,
-        `  MC ${fmt(r.mcap)} · liq ${fmt(r.liquidityUsd)} · vol ${fmt(r.volH24)} · ${pct}`,
-        ""
-      );
+    const byChain = new Map<string, Runner[]>();
+    for (const r of runners) {
+      const arr = byChain.get(r.chainId) ?? [];
+      arr.push(r);
+      byChain.set(r.chainId, arr);
+    }
+
+    for (const [chain, pairs] of byChain) {
+      lines.push(`*${chain.toUpperCase()}*`);
+      for (const r of pairs.slice(0, 6)) {
+        const arrow = r.priceChange24h > 0 ? "🟢" : r.priceChange24h < 0 ? "🔴" : "⚪";
+        const pct = r.priceChange24h > 0 ? `+${r.priceChange24h.toFixed(0)}%` : `${r.priceChange24h.toFixed(0)}%`;
+        const age = r.ageHours < 1 ? `${(r.ageHours * 60).toFixed(0)}m` : r.ageHours < 24 ? `${r.ageHours.toFixed(0)}h` : `${(r.ageHours / 24).toFixed(1)}d`;
+        const mcStr = r.mcap > 0 ? ` · mc ${fmt(r.mcap)}` : "";
+        lines.push(`${arrow} *${r.symbol}* — vol ${fmt(r.volH24)} · liq ${fmt(r.liquidityUsd)}${mcStr} · ${pct} · ${age}`);
+      }
+      lines.push("");
     }
 
     const card = lines.join("\n").slice(0, 4000);
     await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, card, { parse_mode: "Markdown" });
   } catch (err) {
+    const msg = (err as Error).message;
     try {
-      await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, `⚠️ runners scan failed: ${(err as Error).message}`);
+      await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, `⚠️ runners failed: ${msg}`);
     } catch {
-      await ctx.reply(`⚠️ runners scan failed: ${(err as Error).message}`);
+      await ctx.reply(`⚠️ runners failed: ${msg}`);
     }
   }
-}
-
-function esc(s: string): string {
-  return s.replace(/[_*[\]()~`>#+=|{}.!-]/g, "\\$&");
 }
 
 export function registerRunnersCommand(bot: Bot): void {

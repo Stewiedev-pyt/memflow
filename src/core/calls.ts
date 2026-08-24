@@ -27,27 +27,26 @@ export interface CallSignal {
 }
 
 const SEARCH_POOL = [
+  // memes
   "pepe", "doge", "shib", "bonk", "wif", "mog", "brett", "tremp", "giga",
   "floki", "ai16z", "fartcoin", "trump", "mew", "myro", "punk", "toshi",
-  "bome", "jup", "ray", "w", "jto", "ondo", "ena", "ethfi", "strk",
-  "mina", "sei", "sui", "apt", "arb", "op", "base", "matic", "dot",
-  "atom", "link", "uni", "aave", "comp", "mkr", "snx", "crv", "lido",
-  "pendle", "blur", "dydx", "gmx", "jupiter", "pump", "meme", "cat",
-  "dog", "frog", "ape", "moon", "safe", "inu", "kitty", "shiba",
-  "wojak", "coq", "baby", "chad", "gigachad", "neiro", "andychess",
-  "babydoge", "catinu", "popcat", "bookofpepe", "landwolf", "maga",
-  "darkfam", "retardio", "silly", "wifhat", "benji", "mother",
-  "mndcc", "jailcat", "hom", "snoop", "goku", "naruto", "pepe2",
-  "ladys", "milady", "degen", " based", "turd", "chomp",
-  "hippo", "seal", "otter", "quack", "fluffy", "chonk",
-  "szn", "ai", "rizz", "sigma", "gyat", "skibidi",
+  "bome", "popcat", "neiro", "coq", "babydoge", "maga", "retardio",
+  // mid-caps
+  "jup", "ray", "jto", "ondo", "ena", "ethfi", "strk", "sei", "sui", "apt",
+  "arb", "op", "matic", "dot", "atom", "link", "uni", "aave", "comp",
+  "mkr", "snx", "crv", "pendle", "dydx", "gmx", "render", "ar", "fet",
+  "near", "icp", "fil", "theta", "eos", "algo", "vet", "hbar", "xrp",
+  "sol", "eth", "bnb", "avax", "ftm",
+  // pump.fun style
+  "pump", "meme", "cat", "dog", "frog", "ape", "moon", "inu", "kitty",
+  "wojak", "chad", "gigachad", "degen", "hippo", "seal", "otter", "quack",
 ];
 
 async function fetchSearch(q: string): Promise<any[]> {
   try {
     const res = await fetch(
       `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(q)}`,
-      { signal: AbortSignal.timeout(10_000) }
+      { signal: AbortSignal.timeout(12_000) }
     );
     if (!res.ok) return [];
     const data = (await res.json()) as { pairs?: any[] };
@@ -59,6 +58,8 @@ async function fetchSearch(q: string): Promise<any[]> {
 
 function scoreToken(p: any): CallSignal | null {
   const price = p.priceUsd ? Number(p.priceUsd) : 0;
+  if (price <= 0) return null;
+
   const mc = p.marketCap ?? 0;
   const liq = p.liquidity?.usd ?? 0;
   const vol24 = p.volume?.h24 ?? 0;
@@ -83,42 +84,35 @@ function scoreToken(p: any): CallSignal | null {
   let score = 0;
   const reasons: string[] = [];
 
-  // Liquidity health (25 pts)
   if (liqMcRatio > 0.15) { score += 25; reasons.push("strong liq floor"); }
   else if (liqMcRatio > 0.08) { score += 18; reasons.push("healthy liq"); }
   else if (liqMcRatio > 0.03) { score += 8; }
   else { score -= 10; }
 
-  // Volume quality (25 pts)
   if (volLiqRatio > 0.5 && volLiqRatio < 3) { score += 25; reasons.push("organic volume"); }
   else if (volLiqRatio >= 3 && volLiqRatio < 5) { score += 15; reasons.push("high volume"); }
-  else if (volLiqRatio >= 5) { score += 5; reasons.push("⚠️ possible wash"); }
+  else if (volLiqRatio >= 5) { score += 5; reasons.push("wash vol?"); }
 
-  // Buy pressure (20 pts)
   if (buyPressure > 0.7) { score += 20; reasons.push("strong buying"); }
   else if (buyPressure > 0.55) { score += 10; reasons.push("buyers ahead"); }
   else { score -= 5; reasons.push("selling pressure"); }
 
-  // Momentum (15 pts)
   if (change1h > 10) { score += 15; reasons.push("1h momentum +"); }
   else if (change1h > 0) { score += 8; }
   else if (change1h < -10) { score -= 5; }
 
-  // MC sweet spot (10 pts)
   if (mc > 100_000) { score += 10; reasons.push("established MC"); }
   else if (mc > 50_000) { score += 5; }
   else if (mc > 20_000) { score += 3; }
 
-  // Age factor (5 pts)
   if (ageHours > 12) { score += 5; reasons.push("survived"); }
 
   if (score < 30) return null;
 
-  // Calculate targets
   const entryPrice = price;
-  const target1 = price * 1.3;   // +30%
-  const target2 = price * 2.0;   // +100%
-  const stopLoss = price * 0.8;  // -20%
+  const target1 = price * 1.3;
+  const target2 = price * 2.0;
+  const stopLoss = price * 0.8;
 
   const riskLevel: CallSignal["riskLevel"] =
     score >= 60 ? "LOW" : score >= 45 ? "MEDIUM" : "HIGH";
@@ -156,13 +150,23 @@ export async function scanForCalls(): Promise<CallSignal[]> {
   const seen = new Set<string>();
   const all: CallSignal[] = [];
 
-  for (const term of SEARCH_POOL) {
-    const pairs = await fetchSearch(term);
-    for (const p of pairs) {
-      if (seen.has(p.pairAddress)) continue;
-      seen.add(p.pairAddress);
-      const call = scoreToken(p);
-      if (call) all.push(call);
+  // Batch searches to avoid hammering the API
+  const batchSize = 5;
+  for (let i = 0; i < SEARCH_POOL.length; i += batchSize) {
+    const batch = SEARCH_POOL.slice(i, i + batchSize);
+    const results = await Promise.allSettled(batch.map((q) => fetchSearch(q)));
+    for (const r of results) {
+      if (r.status !== "fulfilled") continue;
+      for (const p of r.value) {
+        if (seen.has(p.pairAddress)) continue;
+        seen.add(p.pairAddress);
+        const call = scoreToken(p);
+        if (call) all.push(call);
+      }
+    }
+    // Small delay between batches
+    if (i + batchSize < SEARCH_POOL.length) {
+      await new Promise((r) => setTimeout(r, 500));
     }
   }
 

@@ -13,6 +13,7 @@ import { DexPair } from "../sources/dexscreener.js";
 
 const POLL_INTERVAL_MS = 60_000;
 const WHALE_CHECK_INTERVAL_TICKS = 5;
+const CHART_ALERT_INTERVAL_TICKS = 300; // 5 hours at 1-min polls
 const DIST_COOLDOWN_MS = 45 * 60_000;
 const WHALE_DROP_PCT = 0.4;
 const LIQ_MIN_DELTA_USD = 2_000;
@@ -84,6 +85,10 @@ export function startWatchEngine(bot: Bot): NodeJS.Timeout {
 
       if (tickCount % WHALE_CHECK_INTERVAL_TICKS === 0) {
         await runWhaleChecks(bot, pairs, watchedByPair);
+      }
+
+      if (tickCount % CHART_ALERT_INTERVAL_TICKS === 0 && tickCount > 0) {
+        await sendChartAlerts(bot, pairs);
       }
     } catch (err) {
       console.error("[watch-engine]", (err as Error).message);
@@ -226,6 +231,79 @@ async function broadcast(bot: Bot, text: string): Promise<void> {
       });
     } catch (err) {
       console.error("[alert]", (err as Error).message);
+    }
+  }
+}
+
+function sparkline(prices: number[]): string {
+  const blocks = ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"];
+  if (prices.length === 0) return "";
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  const range = max - min || 1;
+  return prices.map((p) => {
+    const idx = Math.min(7, Math.floor(((p - min) / range) * 8));
+    return blocks[idx];
+  }).join("");
+}
+
+async function sendChartAlerts(bot: Bot, pairs: DexPair[]): Promise<void> {
+  for (const p of pairs) {
+    try {
+      const history: PairSnapshot[] = loadSnapshots(p.pairAddress);
+      if (history.length < 10) continue;
+
+      // Last 5 hours of snapshots (at 1-min intervals = last 300 points, but we have sparse data)
+      const recent = history.slice(-60);
+      if (recent.length < 5) continue;
+
+      const prices = recent.map((s) => s.priceUsd ?? 0).filter((p) => p > 0);
+      const vols = recent.map((s) => s.volM5 ?? 0);
+      const liqs = recent.map((s) => s.liquidityUsd ?? 0);
+
+      if (prices.length < 3) continue;
+
+      const firstPrice = prices[0];
+      const lastPrice = prices[prices.length - 1];
+      const priceChange = firstPrice > 0 ? ((lastPrice - firstPrice) / firstPrice) * 100 : 0;
+
+      const firstLiq = liqs[0];
+      const lastLiq = liqs[liqs.length - 1];
+      const liqChange = firstLiq > 0 ? ((lastLiq - firstLiq) / firstLiq) * 100 : 0;
+
+      const avgVol = vols.reduce((a, b) => a + b, 0) / vols.length;
+      const recentVol = vols.slice(-10).reduce((a, b) => a + b, 0) / Math.min(10, vols.length);
+      const volTrend = avgVol > 0 ? ((recentVol - avgVol) / avgVol) * 100 : 0;
+
+      const chart = sparkline(prices);
+      const arrow = priceChange > 0 ? "📈" : priceChange < 0 ? "📉" : "➡️";
+      const pct = priceChange > 0 ? `+${priceChange.toFixed(1)}%` : `${priceChange.toFixed(1)}%`;
+      const liqPct = liqChange > 0 ? `+${liqChange.toFixed(1)}%` : `${liqChange.toFixed(1)}%`;
+      const volPct = volTrend > 0 ? `+${volTrend.toFixed(0)}%` : `${volTrend.toFixed(0)}%`;
+
+      const lines = [
+        `${arrow} *5H CHART — ${p.baseToken.symbol}* (${p.chainId})`,
+        `\`${chart}\``,
+        `price: $${lastPrice.toFixed(lastPrice < 0.001 ? 10 : lastPrice < 1 ? 6 : 4)} (${pct})`,
+        `liq: ${fmtUsd(lastLiq)} (${liqPct}) · vol trend: ${volPct}`,
+      ];
+
+      // Trend interpretation
+      if (priceChange > 10 && liqChange > 5) {
+        lines.push("_🟢 Bullish — price + liq both rising_");
+      } else if (priceChange > 10 && liqChange < -5) {
+        lines.push("_⚠️ Pump but liq leaving — possible rug setup_");
+      } else if (priceChange < -10 && liqChange > 5) {
+        lines.push("_🟡 Price dropping but liq holding — accumulation?_");
+      } else if (priceChange < -10 && liqChange < -10) {
+        lines.push("_🔴 Price + liq both falling — consider exiting_");
+      } else if (Math.abs(priceChange) < 3) {
+        lines.push("_➡️ Consolidating — watch for breakout_");
+      }
+
+      await broadcast(bot, lines.join("\n"));
+    } catch (err) {
+      console.error("[chart-alert]", p.baseToken.symbol, (err as Error).message);
     }
   }
 }

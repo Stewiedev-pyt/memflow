@@ -13,6 +13,7 @@ import { registerGemsCommand } from "./commands/gems.js";
 import { registerCallsCommand } from "./commands/calls.js";
 import { clearPending, takePending } from "./pending.js";
 import { config } from "../config.js";
+import { handleAgentMessage, toggleAutoMode } from "../agent/telegram.js";
 
 export function createBot(): Bot {
   const bot = new Bot(config.telegramToken);
@@ -36,11 +37,17 @@ export function createBot(): Bot {
     await ctx.reply("👌 cancelled.");
   });
 
+  bot.command("auto", async (ctx) => {
+    if (!ctx.chat) return;
+    const isOn = toggleAutoMode(ctx.chat.id, bot);
+    await ctx.reply(isOn ? "✅ Auto mode ON — you'll receive call signals every 4h" : "⏹️ Auto mode OFF");
+  });
+
   bot.on("message:text", async (ctx) => {
     const text = ctx.message.text.trim();
     if (text.startsWith("/")) return;
+
     const kind = takePending(ctx.chat.id);
-    if (!kind) return;
     if (kind === "scan") return handleScan(ctx, text);
     if (kind === "audit") return handleAudit(ctx, text);
     if (kind === "find") return handleFind(ctx, text);
@@ -50,7 +57,9 @@ export function createBot(): Bot {
     if (kind === "snipers") return handleSnipers(ctx, text);
     if (kind === "brief") return handleBrief(ctx, text);
     if (kind === "vl") return handleVl(ctx, text);
-    await ctx.reply("Something went wrong. Try /cancel and start again.");
+
+    // No pending state — route through agent for natural language processing
+    await handleAgentMessage(ctx, text);
   });
 
   void bot.api.setMyCommands([
@@ -68,6 +77,7 @@ export function createBot(): Bot {
     { command: "vl", description: "Volume + Liquidity deep analysis" },
     { command: "gems", description: "Find legit low MC gems" },
     { command: "calls", description: "Get 6-10 daily calls with entry/exit" },
+    { command: "auto", description: "Toggle auto mode — get calls every 4h" },
     { command: "cancel", description: "Cancel the current prompt" },
   ]);
 

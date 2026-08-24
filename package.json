@@ -2,17 +2,17 @@
   "name": "memflow",
   "version": "0.1.0",
   "description": "Real-time meme token intelligence bot - flow radar, audits and smart-money alerts",
-  "main": "dist/index.js",
+  "main": "dist/combined.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "bot": "tsx src/index.ts",
     "build": "tsup src/combined.ts --format cjs --out-dir dist && node scripts/fix-sqlite.mjs",
+    "start": "node dist/combined.js",
     "build:bot": "tsup src/index.ts --format cjs --out-dir dist && node scripts/fix-sqlite.mjs",
     "build:agent": "tsup src/agent/cli.ts --format cjs --out-dir dist/agent && node scripts/fix-sqlite.mjs",
     "build:masumi": "tsup src/agent/masumi.ts --format cjs --out-dir dist/agent && node scripts/fix-sqlite.mjs",
     "agent": "tsx src/agent/cli.ts",
     "masumi": "tsx src/agent/masumi.ts",
-    "start": "node dist/combined.js",
     "typecheck": "tsc --noEmit"
   },
   "engines": {

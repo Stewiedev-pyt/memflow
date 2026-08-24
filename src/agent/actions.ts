@@ -246,6 +246,155 @@ export async function actionNews(query: string): Promise<ActionResult> {
   }
 }
 
+// ─── TOP TOKENS BY CHAIN ──────────────────────────────────
+const CHAIN_SEARCH_TERMS: Record<string, string[]> = {
+  solana: ["bonk", "wif", "pepe", "fartcoin", "trump", "jup", "ray", "jto", "w", "tnsr", "myro", "bome", "bookofmeme", "popcat", "mew", "brett", "andrew", "giga", "turf", " bos"],
+  ethereum: ["pepe", "shib", "floki", "meme", "lady", "coq", "brett", "bald", "pear", "toshi", "spore", "maga", "ethfi", "ena", "ondo", "pendle"],
+  bsc: ["cake", "safemoon", "babydoge", "floki", "meme", "baby", "raca", "xvs", "belt", "alpaca", "nft", "hero", "sfp"],
+  base: ["brett", "toshi", "meme", "degen", "higher", "bald", "burb", "tad", "normie", "friend", "alex"],
+};
+
+export async function actionTopTokens(chain?: string): Promise<ActionResult> {
+  try {
+    const chains = chain ? [chain.toLowerCase()] : ["solana", "ethereum", "bsc", "base"];
+    const allTokens: any[] = [];
+    const seen = new Set<string>();
+
+    for (const c of chains) {
+      const terms = CHAIN_SEARCH_TERMS[c] ?? [];
+      for (const term of terms) {
+        try {
+          const res = await fetch(
+            `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(term)}`,
+            { signal: AbortSignal.timeout(10_000) }
+          );
+          if (!res.ok) continue;
+          const data = (await res.json()) as { pairs?: any[] };
+          for (const p of data.pairs ?? []) {
+            if (p.chainId !== c) continue;
+            if (seen.has(p.baseToken.address)) continue;
+            seen.add(p.baseToken.address);
+            const mc = p.marketCap ?? 0;
+            const liq = p.liquidity?.usd ?? 0;
+            const vol = p.volume?.h24 ?? 0;
+            const buys = p.txns?.h24?.buys ?? 0;
+            const sells = p.txns?.h24?.sells ?? 0;
+            if (mc < 1_000_000) continue;
+            if (liq < 100_000) continue;
+            allTokens.push({
+              symbol: p.baseToken.symbol,
+              name: p.baseToken.name,
+              chain: p.chainId,
+              dex: p.dexId,
+              tokenAddress: p.baseToken.address,
+              pairAddress: p.pairAddress,
+              price: p.priceUsd,
+              mcap: mc,
+              liquidity: liq,
+              volume24h: vol,
+              priceChange24h: p.priceChange?.h24 ?? 0,
+              priceChange1h: p.priceChange?.h1 ?? 0,
+              buys24h: buys,
+              sells24h: sells,
+              buyPressure: buys + sells > 0 ? buys / (buys + sells) : 0.5,
+              ageHours: p.pairCreatedAt ? (Date.now() - p.pairCreatedAt) / 3_600_000 : null,
+            });
+          }
+        } catch {
+          continue;
+        }
+      }
+    }
+
+    const sorted = allTokens
+      .sort((a, b) => b.mcap - a.mcap)
+      .slice(0, 20);
+
+    return {
+      success: true,
+      data: {
+        chain: chain ?? "all",
+        total: sorted.length,
+        tokens: sorted,
+      },
+    };
+  } catch (err) {
+    return { success: false, data: null, error: (err as Error).message };
+  }
+}
+
+// ─── LOW CAP GEMS ──────────────────────────────────────────
+export async function actionLowCapGems(chain?: string): Promise<ActionResult> {
+  try {
+    const chains = chain ? [chain.toLowerCase()] : ["solana", "ethereum", "bsc", "base"];
+    const gems: any[] = [];
+    const seen = new Set<string>();
+    const terms = ["pepe", "doge", "bonk", "wif", "ai16z", "fartcoin", "trump", "jup", "sui", "apt", "arb", "render", "near", "meme", "shib", "floki", "brett", "toshi", "degen"];
+
+    for (const term of terms) {
+      try {
+        const res = await fetch(
+          `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(term)}`,
+          { signal: AbortSignal.timeout(10_000) }
+        );
+        if (!res.ok) continue;
+        const data = (await res.json()) as { pairs?: any[] };
+        for (const p of data.pairs ?? []) {
+          if (!chains.includes(p.chainId)) continue;
+          if (seen.has(p.baseToken.address)) continue;
+          seen.add(p.baseToken.address);
+          const mc = p.marketCap ?? 0;
+          const liq = p.liquidity?.usd ?? 0;
+          const vol = p.volume?.h24 ?? 0;
+          const buys = p.txns?.h24?.buys ?? 0;
+          const sells = p.txns?.h24?.sells ?? 0;
+          if (mc < 50_000 || mc > 500_000) continue;
+          if (liq < 5_000) continue;
+          if (vol < 100) continue;
+          gems.push({
+            symbol: p.baseToken.symbol,
+            name: p.baseToken.name,
+            chain: p.chainId,
+            tokenAddress: p.baseToken.address,
+            pairAddress: p.pairAddress,
+            price: p.priceUsd,
+            mcap: mc,
+            liquidity: liq,
+            volume24h: vol,
+            priceChange24h: p.priceChange?.h24 ?? 0,
+            buys24h: buys,
+            sells24h: sells,
+            buyPressure: buys + sells > 0 ? buys / (buys + sells) : 0.5,
+            liqMcRatio: mc > 0 ? liq / mc : 0,
+            ageHours: p.pairCreatedAt ? (Date.now() - p.pairCreatedAt) / 3_600_000 : null,
+          });
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    const sorted = gems
+      .sort((a, b) => {
+        const scoreA = a.liqMcRatio * 0.4 + a.buyPressure * 0.3 + (a.volume24h / a.mcap) * 0.3;
+        const scoreB = b.liqMcRatio * 0.4 + b.buyPressure * 0.3 + (b.volume24h / b.mcap) * 0.3;
+        return scoreB - scoreA;
+      })
+      .slice(0, 15);
+
+    return {
+      success: true,
+      data: {
+        chain: chain ?? "all",
+        total: sorted.length,
+        gems: sorted,
+      },
+    };
+  } catch (err) {
+    return { success: false, data: null, error: (err as Error).message };
+  }
+}
+
 // ─── HELPERS ──────────────────────────────────────────────
 async function getOhlcvSafe(network: string, pairAddress: string) {
   try {

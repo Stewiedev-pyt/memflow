@@ -139,6 +139,8 @@ function formatHelp(): string {
     "Calls — calls, signals, trade ideas",
     "Holders — holders of FARTCOIN",
     "Top traders — smart money in BONK",
+    "Top tokens — list high MC tokens by chain",
+    "Top tokens on solana — chain-specific",
     "Gems — gems, low cap",
     "Market — market, overview",
     "Fear — fear and greed",
@@ -146,6 +148,19 @@ function formatHelp(): string {
     "",
     "Or use slash commands: /scan /find /brief /audit /nh /top /snipers /watch /runners /vl /gems /calls",
   ].join("\n");
+}
+
+// ─── TOP TOKENS FORMATTER ──────────────────────────────────
+function formatTopTokens(d: any): string {
+  if (!d || !d.tokens || d.tokens.length === 0) return "❌ No tokens found";
+  const lines = [`🏆 TOP TOKENS — ${d.chain.toUpperCase()} (${d.total} found)`];
+  for (const t of d.tokens.slice(0, 15)) {
+    const change = t.priceChange24h > 0 ? `+${t.priceChange24h.toFixed(1)}%` : `${t.priceChange24h.toFixed(1)}%`;
+    lines.push(
+      `${esc(t.symbol)} (${esc(t.chain)}) — $${fmtMcap(t.mcap)} | Liq $${fmtUsd(t.liquidity)} | Vol $${fmtUsd(t.volume24h)} | 24h ${change}`
+    );
+  }
+  return lines.join("\n");
 }
 
 // ─── RESPONSE ROUTER ──────────────────────────────────────
@@ -159,6 +174,7 @@ function formatResponse(response: AgentResponse): string {
     case "holders": return formatHolders(response.data);
     case "topTraders": return formatTopTraders(response.data);
     case "gems": return formatGems(response.data);
+    case "topTokens": return formatTopTokens(response.data);
     case "market":
     case "fearGreed": return formatMarket(response.data);
     case "news": return formatNews(response.data);

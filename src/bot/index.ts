@@ -11,6 +11,7 @@ import { registerRunnersCommand } from "./commands/runners.js";
 import { registerVlCommand, handleVl } from "./commands/vl.js";
 import { registerGemsCommand } from "./commands/gems.js";
 import { registerCallsCommand } from "./commands/calls.js";
+import { registerTopCoinsCommand } from "./commands/topcoins.js";
 import { clearPending, takePending } from "./pending.js";
 import { config } from "../config.js";
 import { handleAgentMessage, toggleAutoMode } from "../agent/telegram.js";
@@ -30,6 +31,7 @@ export function createBot(): Bot {
   registerVlCommand(bot);
   registerGemsCommand(bot);
   registerCallsCommand(bot);
+  registerTopCoinsCommand(bot);
 
   bot.command("cancel", async (ctx) => {
     if (!ctx.chat) return;
@@ -76,6 +78,7 @@ export function createBot(): Bot {
     { command: "runners", description: "Trending tokens across all chains" },
     { command: "vl", description: "Volume + Liquidity deep analysis" },
     { command: "gems", description: "Find legit low MC gems" },
+    { command: "topcoins", description: "List high MC tokens ($1M+) by chain" },
     { command: "calls", description: "Get 6-10 daily calls with entry/exit" },
     { command: "auto", description: "Toggle auto mode — get calls every 4h" },
     { command: "cancel", description: "Cancel the current prompt" },

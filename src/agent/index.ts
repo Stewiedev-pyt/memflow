@@ -72,8 +72,16 @@ export class MemflowAgent {
 
     // Gems
     if (text.includes("gem") || text.includes("low cap") || text.includes("low mc")) {
-      const result = await actions.actionGems();
+      const chain = this.extractChain(text);
+      const result = await actions.actionLowCapGems(chain);
       return { action: "gems", ...result, timestamp };
+    }
+
+    // Top tokens (high MC, real tokens, not honeypots)
+    if (text.includes("top token") || text.includes("blue chip") || text.includes("list token") || text.includes("high mc") || text.includes("big token") || text.includes("real token") || text.includes("generate list")) {
+      const chain = this.extractChain(text);
+      const result = await actions.actionTopTokens(chain);
+      return { action: "topTokens", ...result, timestamp };
     }
 
     // Market
@@ -107,7 +115,9 @@ export class MemflowAgent {
             "calls — get trading signals with entry/exit",
             "holders <token> — holder distribution",
             "traders <token> — smart money activity",
-            "gems — find low MC gems",
+            "top tokens — list high MC tokens ($1M+) by chain",
+            "top tokens on solana — chain-specific list",
+            "gems — find low MC gems ($50K-$500K)",
             "market — global market overview",
             "fear — fear & greed index",
             "news <ticker> — latest news",
@@ -169,5 +179,13 @@ export class MemflowAgent {
       cleaned = cleaned.replace(new RegExp(`\\b${t}\\b`, "gi"), "");
     }
     return cleaned.replace(/[^\w\s]/g, "").trim();
+  }
+
+  private extractChain(text: string): string | undefined {
+    if (text.includes("solana") || text.includes("sol")) return "solana";
+    if (text.includes("ethereum") || text.includes("eth")) return "ethereum";
+    if (text.includes("bsc") || text.includes("bnb") || text.includes("bnb chain")) return "bsc";
+    if (text.includes("base")) return "base";
+    return undefined;
   }
 }

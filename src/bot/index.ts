@@ -7,11 +7,6 @@ import { registerBriefCommand, handleBrief } from "./commands/brief.js";
 import { registerNotableHoldersCommand, handleNotableHolders } from "./commands/notable-holders.js";
 import { registerTopCommand, handleTop } from "./commands/top.js";
 import { registerSnipersCommand, handleSnipers } from "./commands/snipers.js";
-import { registerWhaleDiagramCommand, handleWhaleDiagram } from "./commands/whale-diagram.js";
-import { registerAirdropCommand, handleAirdrop } from "./commands/airdrop.js";
-import { registerDevCommand, handleDev } from "./commands/dev.js";
-import { registerMarketCommand } from "./commands/market-overview.js";
-import { registerFearCommand } from "./commands/fear.js";
 import { registerRunnersCommand } from "./commands/runners.js";
 import { registerVlCommand, handleVl } from "./commands/vl.js";
 import { registerGemsCommand } from "./commands/gems.js";
@@ -29,11 +24,6 @@ export function createBot(): Bot {
   registerNotableHoldersCommand(bot);
   registerTopCommand(bot);
   registerSnipersCommand(bot);
-  registerWhaleDiagramCommand(bot);
-  registerAirdropCommand(bot);
-  registerDevCommand(bot);
-  registerMarketCommand(bot);
-  registerFearCommand(bot);
   registerRunnersCommand(bot);
   registerVlCommand(bot);
   registerGemsCommand(bot);
@@ -56,10 +46,7 @@ export function createBot(): Bot {
     if (kind === "holders") return handleNotableHolders(ctx, text);
     if (kind === "top") return handleTop(ctx, text);
     if (kind === "snipers") return handleSnipers(ctx, text);
-    if (kind === "wd") return handleWhaleDiagram(ctx, text);
-    if (kind === "ad") return handleAirdrop(ctx, text);
     if (kind === "brief") return handleBrief(ctx, text);
-    if (kind === "dev") return handleDev(ctx, text);
     if (kind === "vl") return handleVl(ctx, text);
     await ctx.reply("Something went wrong. Try /cancel and start again.");
   });
@@ -69,17 +56,12 @@ export function createBot(): Bot {
     { command: "find", description: "Find the REAL token among clones" },
     { command: "brief", description: "Technicals + news briefing" },
     { command: "audit", description: "Security audit of a contract" },
-    { command: "dev", description: "Check deployer history & rugs" },
     { command: "nh", description: "Notable holders by category" },
     { command: "top", description: "Top 10 traders by volume" },
     { command: "snipers", description: "Who sniped at launch" },
-    { command: "wd", description: "Whale diagram — visual holder map" },
-    { command: "ad", description: "Airdrop report — check for dumpers" },
     { command: "watch", description: "Track a token — get flow alerts" },
     { command: "watchlist", description: "Show tracked tokens" },
     { command: "unwatch", description: "Stop tracking a token" },
-    { command: "i", description: "Global market overview" },
-    { command: "fear", description: "Fear & Greed Index" },
     { command: "runners", description: "Trending tokens across all chains" },
     { command: "vl", description: "Volume + Liquidity deep analysis" },
     { command: "gems", description: "Find legit low MC gems" },

@@ -114,6 +114,8 @@ export function createBot(): Bot {
 export async function initBot(bot: Bot): Promise<string> {
   await bot.init();
   await bot.api.setMyCommands([
+    { command: "start", description: "Start the bot" },
+    { command: "help", description: "Show all commands" },
     { command: "scan", description: "Full token scan — price, liq, chart, creator" },
     { command: "find", description: "Find the REAL token among clones" },
     { command: "brief", description: "Technicals + news briefing" },

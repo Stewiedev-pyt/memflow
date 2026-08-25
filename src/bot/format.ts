@@ -1,5 +1,5 @@
-export function esc(s: string): string {
-  return s.replace(/[_*[\]()~`>#+=|{}.!-]/g, "\\$&");
+export function esc(s: unknown): string {
+  return String(s ?? "").replace(/[_*[\]()~`>#+=|{}.!-]/g, "\\$&");
 }
 
 export function truncate(text: string, max = 4000): string {

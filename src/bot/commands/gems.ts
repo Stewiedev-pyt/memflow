@@ -1,4 +1,5 @@
 import { Bot, Context } from "grammy";
+import { esc } from "../format.js";
 
 interface Gem {
   symbol: string;
@@ -177,10 +178,6 @@ export async function handleGems(ctx: Context): Promise<void> {
       await ctx.reply(`⚠️ gems scan failed: ${msg}`);
     }
   }
-}
-
-function esc(s: string): string {
-  return s.replace(/[_*[\]()~`>#+=|{}.!-]/g, "\\$&");
 }
 
 export function registerGemsCommand(bot: Bot): void {

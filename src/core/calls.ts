@@ -99,11 +99,11 @@ function scoreToken(p: any): CallSignal | null {
   const ageMs = p.pairCreatedAt ? Date.now() - p.pairCreatedAt : Infinity;
   const ageHours = ageMs / 3_600_000;
 
-  // Hard filters — very relaxed
-  if (mc < 1_000 || mc > 50_000_000) return null;
-  if (liq < 500) return null;
-  if (vol24 < 200) return null;
-  if (ageHours < 0.25 || ageHours > 360) return null; // 15min to 15 days
+  // Hard filters — very wide
+  if (mc < 1_000 || mc > 100_000_000) return null;
+  if (liq < 10_000) return null;
+  if (vol24 < 5_000) return null;
+  if (ageHours < 0.25 || ageHours > 720) return null; // 15min to 30 days
 
   const buyPressure = buys + sells > 0 ? buys / (buys + sells) : 0.5;
   const liqMcRatio = mc > 0 ? liq / mc : 0;

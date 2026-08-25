@@ -72,7 +72,16 @@ export function createBot(): Bot {
     await handleAgentMessage(ctx, text);
   });
 
-  void bot.api.setMyCommands([
+  bot.catch((err) => {
+    console.error("Bot error:", err.error);
+  });
+
+  return bot;
+}
+
+export async function initBot(bot: Bot): Promise<string> {
+  await bot.init();
+  await bot.api.setMyCommands([
     { command: "scan", description: "Full token scan — price, liq, chart, creator" },
     { command: "find", description: "Find the REAL token among clones" },
     { command: "brief", description: "Technicals + news briefing" },
@@ -97,16 +106,6 @@ export function createBot(): Bot {
     { command: "auto", description: "Toggle auto mode — get calls every 4h" },
     { command: "cancel", description: "Cancel the current prompt" },
   ]);
-
-  bot.catch((err) => {
-    console.error("Bot error:", err.error);
-  });
-
-  return bot;
-}
-
-export async function initBot(bot: Bot): Promise<string> {
-  await bot.init();
   return bot.botInfo.username;
 }
 

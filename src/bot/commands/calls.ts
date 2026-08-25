@@ -45,51 +45,49 @@ export async function handleCalls(ctx: Context): Promise<void> {
       return;
     }
 
-    // Header
-    const low = calls.filter((c) => c.riskLevel === "LOW").length;
-    const med = calls.filter((c) => c.riskLevel === "MEDIUM").length;
-    const high = calls.filter((c) => c.riskLevel === "HIGH").length;
+    // Group by chain
+    const sol = calls.filter((c) => c.chainId === "solana");
+    const eth = calls.filter((c) => c.chainId === "ethereum");
+    const bsc = calls.filter((c) => c.chainId === "bsc");
+    const base = calls.filter((c) => c.chainId === "base");
 
     const header = [
       `🎯 *DAILY CALLS — ${calls.length} signals*`,
-      `_scanned ${["sol", "eth", "base", "bsc"].join("/")} · ${low}🟢 ${med}🟡 ${high}🟠_`,
+      `_Sol: ${sol.length} · ETH: ${eth.length} · BSC: ${bsc.length} · Base: ${base.length}_`,
       `_manage risk: never risk more than you can afford to lose_`,
     ].join("\n");
 
     await ctx.api.editMessageText(ctx.chat.id, thinking.message_id, header, { parse_mode: "Markdown" });
 
-    // Send calls in batches of 3 to avoid rate limits
-    for (let i = 0; i < calls.length; i += 3) {
-      const batch = calls.slice(i, i + 3);
-      const text = batch.map((c, j) => formatCall(c, i + j + 1)).join("\n\n");
+    // Send calls grouped by chain
+    const sections = [
+      { name: "SOLANA", emoji: "◎", arr: sol },
+      { name: "ETHEREUM", emoji: "⟠", arr: eth },
+      { name: "BSC", emoji: "🟡", arr: bsc },
+      { name: "BASE", emoji: "🔵", arr: base },
+    ];
+
+    for (const sec of sections) {
+      if (sec.arr.length === 0) continue;
+      const lines = [`*${sec.emoji} ${sec.name}*`];
+      for (let i = 0; i < sec.arr.length; i++) {
+        const c = sec.arr[i];
+        const riskEmoji = { LOW: "🟢", MEDIUM: "🟡", HIGH: "🟠" };
+        const pct = c.priceChange24h > 0 ? `+${c.priceChange24h.toFixed(0)}%` : `${c.priceChange24h.toFixed(0)}%`;
+        const rugcheck = c.rugcheck ? ` · ${c.rugcheck}` : "";
+        lines.push(
+          `${riskEmoji[c.riskLevel]} *${c.symbol}* — score ${c.score}/100`,
+          `   Entry ${fmtPrice(c.entryPrice)} · TP1 ${fmtPrice(c.target1)} · TP2 ${fmtPrice(c.target2)} · SL ${fmtPrice(c.stopLoss)}`,
+          `   MC ${fmt(c.mcap)} · Liq ${fmt(c.liquidityUsd)} · Vol ${fmt(c.volH24)} · ${pct}${rugcheck}`,
+          `   \`${c.tokenAddress}\``
+        );
+      }
       try {
-        await ctx.reply(text, {
-          parse_mode: "Markdown",
-          link_preview_options: { is_disabled: true },
-        });
+        await ctx.reply(lines.join("\n"), { parse_mode: "Markdown", link_preview_options: { is_disabled: true } });
       } catch {
-        // If Markdown fails, try plain text
-        const plain = batch.map((c, j) => formatCall(c, i + j + 1)).join("\n\n");
-        await ctx.reply(plain);
+        await ctx.reply(lines.join("\n"));
       }
-      // Store each call in the database
-      for (const c of batch) {
-        try {
-          addCall({
-            chatId: ctx.chat.id,
-            symbol: c.symbol,
-            tokenAddress: c.tokenAddress,
-            pairAddress: c.pairAddress,
-            chainId: c.chainId,
-            entryPrice: c.entryPrice,
-            entryMcap: c.mcap,
-            score: c.score,
-            reasoning: c.reasons.join(" · "),
-          });
-        } catch { /* continue */ }
-      }
-      // Delay between batches
-      if (i + 3 < calls.length) await new Promise((r) => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 1000));
     }
 
     // Footer

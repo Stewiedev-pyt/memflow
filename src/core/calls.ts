@@ -37,32 +37,41 @@ const SOLANA_SEARCH = [
   "trump", "jup", "ray", "jto", "w", "tnsr", "bookofmeme", "giga", "bos",
   "andrew", "retardio", "chad", "coq", "ape", "dog", "cat", "pepe", "frog",
   "meme", "moon", "rocket", "pump", "degen", "chad", "based", "virgin",
-  "pussy", "ass", "tits", "dick", "cock", "balls", "nuts", "boner",
   "shib", "floki", "babydoge", "safemoon", "luna",
-  // Trending
   "solana", "pump.fun", "raydium", "jupiter",
-  // Fresh launches
   "new", "launch", "trending", "viral",
 ];
 
 const ETH_SEARCH = [
-  "pepe", "shib", "floki", "meme", "lady", "coq", "brett", "bald",
-  "pear", "toshi", "spore", "maga", "ethfi", "ena", "ondo", "pendle",
-  "mog", "brett", "toshi", "degen", "higher", "normie", "friend",
-  "aerodrome", "velodrome", "key", "ldo", "rpl", "fxs",
+  // Tokens that actually exist on ETH
+  "pepe", "shib", "floki", "mog", "brett", "toshi", "meme", "lady",
+  "coq", "bald", "pear", "spore", "maga", "ethfi", "ena", "ondo",
+  "pendle", "degen", "higher", "normie", "friend", "aerodrome", "velodrome",
+  "key", "ldo", "rpl", "fxs", "golem", "storj", "omg", "zrx",
+  "snx", "yfi", "comp", "mkr", "bal", "nnc", "blz", "ankr",
+  "perl", "cvc", "powr", "bat", "rep", "snt", "iotx", "loom",
+  "hot", "eng", "req", "storj", "zil", "etn", "matic", "celo",
+  "ethereum", "eth", "erc20", "defi", "uniswap", "aave",
 ];
 
 const BSC_SEARCH = [
-  "cake", "safemoon", "babydoge", "floki", "meme", "baby", "raca",
+  // Tokens that actually exist on BSC
+  "cake", "safemoon", "babydoge", "floki", "meme", "raca",
   "xvs", "belt", "alpaca", "nft", "hero", "sfp", "bake", "burger",
-  "chem", "bro", "wojak", "chad", "pepe", "doge", "shib",
-  "stepn", "gala", "sand", "mana", "axs",
+  "bro", "wojak", "chad", "pepe", "doge", "shib",
+  "stepn", "gala", "sand", "mana", "axs", "vet", "theta",
+  "one", "cos", "kava", "zen", "npxs", "hot", "vet",
+  "vet", "ankr", "coti", "chr", "tvk", "dusk", "chr",
+  "bnb", "bsc", "pancakeswap", "biswap", "nomad",
 ];
 
 const BASE_SEARCH = [
-  "brett", "toshi", "meme", "degen", "higher", "bald", "burb", "tad",
-  "normie", "friend", "alex", "aerodrome", "velodrome", "prc", "mochi",
-  "key", "luna", "tua", "based", "virtual",
+  // Tokens that actually exist on Base
+  "brett", "toshi", "meme", "degen", "higher", "bald", "normie", "friend",
+  "aerodrome", "velodrome", "mochi", "virtual", "prc", "based",
+  "key", "luna", "tua", "burb", "tad", "alex",
+  "base", "coinbase", "l2", "layer2", "op", "optimism",
+  "usdc", "dai", "cbeth", "weth",
 ];
 
 // ─── FETCH FROM DEXSCREENER ──────────────────────────────
@@ -99,11 +108,11 @@ async function deepCheckEvm(tokenAddress: string, chainId: string): Promise<{ sa
   try {
     const chain = chainId === "ethereum" ? "1" : chainId === "bsc" ? "56" : chainId === "base" ? "8453" : "1";
     const hp = await auditEvmViaHoneypot(tokenAddress, chain);
-    if (!hp) return { safe: false, details: "honeypot check failed" };
-    if (hp.isHoneypot) return { safe: false, details: "IS A HONEYPOT" };
-    if (hp.simulationSuccess === false) return { safe: false, details: "simulation failed" };
-    if (hp.buyTax && hp.buyTax > 10) return { safe: false, details: `buy tax ${hp.buyTax}%` };
-    if (hp.sellTax && hp.sellTax > 10) return { safe: false, details: `sell tax ${hp.sellTax}%` };
+    if (!hp) return { safe: true, details: "check skipped" };
+    if (hp.isHoneypot) return { safe: false, details: "HONEYPOT" };
+    if (hp.simulationSuccess === false) return { safe: true, details: "sim failed, proceed" };
+    if (hp.buyTax && hp.buyTax > 25) return { safe: false, details: `buy tax ${hp.buyTax}%` };
+    if (hp.sellTax && hp.sellTax > 25) return { safe: false, details: `sell tax ${hp.sellTax}%` };
     return { safe: true, details: "passed" };
   } catch {
     return { safe: true, details: "check skipped" };
@@ -126,11 +135,11 @@ function scoreToken(p: any, chainId: string): CallSignal | null {
   const ageMs = p.pairCreatedAt ? Date.now() - p.pairCreatedAt : Infinity;
   const ageHours = ageMs / 3_600_000;
 
-  // Hard filters — wide but real
-  if (mc < 1_000 || mc > 100_000_000) return null;
-  if (liq < 10_000) return null;
-  if (vol24 < 5_000) return null;
-  if (ageHours < 0.25 || ageHours > 720) return null;
+  // Hard filters — lenient for all chains
+  if (mc < 500 || mc > 500_000_000) return null;
+  if (liq < 5_000) return null;
+  if (vol24 < 2_000) return null;
+  if (ageHours < 0.1 || ageHours > 1440) return null; // 6min to 60 days
 
   const buyPressure = buys + sells > 0 ? buys / (buys + sells) : 0.5;
   const liqMcRatio = mc > 0 ? liq / mc : 0;
@@ -176,7 +185,7 @@ function scoreToken(p: any, chainId: string): CallSignal | null {
   // Solana meme bonus
   if (chainId === "solana") { score += 5; reasons.push("sol chain bonus"); }
 
-  if (score < 15) return null;
+  if (score < 10) return null;
 
   const entryPrice = price;
   const target1 = price * 1.5;

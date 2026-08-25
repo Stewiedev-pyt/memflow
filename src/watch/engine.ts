@@ -92,7 +92,7 @@ export function startWatchEngine(bot: Bot): NodeJS.Timeout {
       }
 
       if (tickCount % 2 === 0) {
-        await checkPriceAlerts(bot);
+        checkPriceAlerts(bot).catch((e) => console.error("[alert-check]", (e as Error).message));
       }
     } catch (err) {
       console.error("[watch-engine]", (err as Error).message);

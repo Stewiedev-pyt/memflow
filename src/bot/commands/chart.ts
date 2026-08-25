@@ -1,6 +1,6 @@
 import { Bot } from "grammy";
 import { searchPairs } from "../../sources/dexscreener.js";
-import { getOhlcv } from "../../sources/geckoterminal.js";
+import { getOhlcv, toGeckoNetwork } from "../../sources/geckoterminal.js";
 import { esc, fmtUsd, fmtMcap } from "../format.js";
 
 function buildChartUrl(
@@ -11,9 +11,6 @@ function buildChartUrl(
     const d = new Date(c.ts);
     return `${d.getUTCHours()}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
   });
-  const opens = candles.map((c) => c.o);
-  const highs = candles.map((c) => c.h);
-  const lows = candles.map((c) => c.l);
   const closes = candles.map((c) => c.c);
   const volumes = candles.map((c) => c.v);
 
@@ -89,9 +86,14 @@ export function registerChartCommand(bot: Bot) {
     const best = pairs[0];
     const symbol = best.baseToken.symbol;
     const name = best.baseToken.name;
-    const network = best.chainId;
+    const chainName = best.chainId;
+    const network = toGeckoNetwork(chainName);
 
-    const candles = await getOhlcv(network, best.pairAddress, "hour", 48);
+    if (!network) {
+      return ctx.reply(`❌ Unsupported chain: ${chainName}`);
+    }
+
+    const candles = await getOhlcv(network, best.pairAddress, "hour", 24);
     if (candles.length < 5) {
       return ctx.reply(`❌ Not enough price data for ${symbol}.`);
     }
@@ -109,7 +111,7 @@ export function registerChartCommand(bot: Bot) {
 
     const lines = [
       `📊 *${esc(symbol)} — ${esc(name)}*`,
-      `*${network.toUpperCase()}*\n`,
+      `*${chainName.toUpperCase()}*\n`,
       `Current: ${fmtUsd(best.priceUsd)} · MC: ${fmtMcap(best.marketCap)}`,
       `Liq: ${fmtUsd(best.liquidity?.usd)} · Vol 24h: ${fmtUsd(best.volume?.h24)}`,
       `${candles.length} candles (1h) · ${new Date(candles[candles.length - 1].ts).toUTCString()}${techNote}`,
@@ -120,8 +122,12 @@ export function registerChartCommand(bot: Bot) {
       link_preview_options: { is_disabled: true },
     });
 
-    await ctx.replyWithPhoto(chartUrl, {
-      caption: `${symbol} ${candles.length}h chart`,
-    });
+    try {
+      await ctx.replyWithPhoto(chartUrl, {
+        caption: `${symbol} ${candles.length}h chart`,
+      });
+    } catch {
+      await ctx.reply(`📊 Chart URL: ${chartUrl}`);
+    }
   });
 }

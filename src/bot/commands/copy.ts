@@ -1,5 +1,4 @@
 import { Bot } from "grammy";
-import { esc, fmtUsd } from "../format.js";
 
 export interface CopyTradeRule {
   id: string;

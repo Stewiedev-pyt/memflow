@@ -1,4 +1,4 @@
-import { Bot, Context } from "grammy";
+import { Bot } from "grammy";
 
 export interface AlertRule {
   id: string;

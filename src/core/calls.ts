@@ -58,7 +58,10 @@ const SEARCH_POOL = [
   "0x4200000000000000000000000000000000000006", // WETH on Base
   "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", // USDC on Base
   // Generic searches (catch-all)
-  "solana", "ethereum", "bsc",
+  "solana", "ethereum", "bsc", "base",
+  // Trending searches
+  "meme", "doge", "cat", "pepe", "ai", "trump", "bonk", "retard",
+  "pump", "moon", "rocket", "chad", "frog", "dog", "coin", "token",
 ];
 
 async function fetchSearch(q: string): Promise<any[]> {
@@ -90,11 +93,11 @@ function scoreToken(p: any): CallSignal | null {
   const ageMs = p.pairCreatedAt ? Date.now() - p.pairCreatedAt : Infinity;
   const ageHours = ageMs / 3_600_000;
 
-  // Hard filters
-  if (mc < 10_000 || mc > 2_000_000) return null;
-  if (liq < 5_000) return null;
-  if (vol24 < 5_000) return null;
-  if (ageHours < 1 || ageHours > 168) return null;
+  // Hard filters — relaxed
+  if (mc < 5_000 || mc > 10_000_000) return null;
+  if (liq < 1_000) return null;
+  if (vol24 < 500) return null;
+  if (ageHours < 0.5 || ageHours > 720) return null; // 30min to 30 days
 
   const buyPressure = buys + sells > 0 ? buys / (buys + sells) : 0.5;
   const liqMcRatio = mc > 0 ? liq / mc : 0;
@@ -106,19 +109,20 @@ function scoreToken(p: any): CallSignal | null {
   if (liqMcRatio > 0.15) { score += 25; reasons.push("strong liq floor"); }
   else if (liqMcRatio > 0.08) { score += 18; reasons.push("healthy liq"); }
   else if (liqMcRatio > 0.03) { score += 8; }
-  else { score -= 10; }
+  else { score -= 5; }
 
   if (volLiqRatio > 0.5 && volLiqRatio < 3) { score += 25; reasons.push("organic volume"); }
   else if (volLiqRatio >= 3 && volLiqRatio < 5) { score += 15; reasons.push("high volume"); }
   else if (volLiqRatio >= 5) { score += 5; reasons.push("wash vol?"); }
+  else { score += 5; }
 
   if (buyPressure > 0.7) { score += 20; reasons.push("strong buying"); }
   else if (buyPressure > 0.55) { score += 10; reasons.push("buyers ahead"); }
-  else { score -= 5; reasons.push("selling pressure"); }
+  else { score -= 3; }
 
   if (change1h > 10) { score += 15; reasons.push("1h momentum +"); }
   else if (change1h > 0) { score += 8; }
-  else if (change1h < -10) { score -= 5; }
+  else if (change1h < -10) { score -= 3; }
 
   if (mc > 100_000) { score += 10; reasons.push("established MC"); }
   else if (mc > 50_000) { score += 5; }
@@ -126,7 +130,7 @@ function scoreToken(p: any): CallSignal | null {
 
   if (ageHours > 12) { score += 5; reasons.push("survived"); }
 
-  if (score < 30) return null;
+  if (score < 20) return null;
 
   const entryPrice = price;
   const target1 = price * 1.3;

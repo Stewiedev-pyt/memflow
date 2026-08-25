@@ -753,6 +753,13 @@ export async function actionPortfolioView(chatId: string): Promise<ActionResult>
   const totalPnl = totalCurrent - totalInvested;
   const totalPnlPct = totalInvested > 0 ? (totalPnl / totalInvested) * 100 : 0;
 
+  const winners = positions.filter((p) => p.pnl > 0);
+  const losers = positions.filter((p) => p.pnl < 0);
+  const breakeven = positions.filter((p) => p.pnl === 0);
+  const winRate = positions.length > 0 ? (winners.length / positions.length) * 100 : 0;
+  const avgWin = winners.length > 0 ? winners.reduce((a, b) => a + b.pnlPct, 0) / winners.length : 0;
+  const avgLoss = losers.length > 0 ? losers.reduce((a, b) => a + b.pnlPct, 0) / losers.length : 0;
+
   return {
     success: true,
     data: {
@@ -760,6 +767,12 @@ export async function actionPortfolioView(chatId: string): Promise<ActionResult>
       totalCurrent,
       totalPnl,
       totalPnlPct,
+      winRate,
+      winners: winners.length,
+      losers: losers.length,
+      breakeven: breakeven.length,
+      avgWin,
+      avgLoss,
       positions,
     },
   };

@@ -225,6 +225,8 @@ function formatPortfolio(d: any): string {
     `📊 <b>PORTFOLIO</b>\n`,
     `💰 Invested: $${fmtUsd(d.totalInvested)} | Current: $${fmtUsd(d.totalCurrent)}`,
     `📈 PnL: $${fmtUsd(d.totalPnl)} (${d.totalPnlPct > 0 ? "+" : ""}${d.totalPnlPct?.toFixed(2)}%)\n`,
+    `🎯 Win Rate: ${d.winRate?.toFixed(0)}% | 🟢 ${d.winners}W / 🔴 ${d.losers}L / ⚪ ${d.breakeven}BE`,
+    `📊 Avg Win: ${d.avgWin > 0 ? "+" : ""}${d.avgWin?.toFixed(1)}% | Avg Loss: ${d.avgLoss?.toFixed(1)}%\n`,
   ];
   for (const p of d.positions) {
     const e = p.pnl >= 0 ? "🟢" : "🔴";

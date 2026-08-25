@@ -1,5 +1,6 @@
 import { Bot, Context } from "grammy";
 import { scanForCalls, CallSignal } from "../../core/calls.js";
+import { addCall } from "../../storage/db.js";
 
 function fmt(n: number): string {
   if (n >= 1e6) return `$${(n / 1e6).toFixed(2)}M`;
@@ -70,6 +71,22 @@ export async function handleCalls(ctx: Context): Promise<void> {
         // If Markdown fails, try plain text
         const plain = batch.map((c, j) => formatCall(c, i + j + 1)).join("\n\n");
         await ctx.reply(plain);
+      }
+      // Store each call in the database
+      for (const c of batch) {
+        try {
+          addCall({
+            chatId: ctx.chat.id,
+            symbol: c.symbol,
+            tokenAddress: c.tokenAddress,
+            pairAddress: c.pairAddress,
+            chainId: c.chainId,
+            entryPrice: c.entryPrice,
+            entryMcap: c.mcap,
+            score: c.score,
+            reasoning: c.reasons.join(" · "),
+          });
+        } catch { /* continue */ }
       }
       // Delay between batches
       if (i + 3 < calls.length) await new Promise((r) => setTimeout(r, 1000));

@@ -54,6 +54,22 @@ CREATE TABLE IF NOT EXISTS scan_leaderboard (
   last_scan_at INTEGER,
   best_mcap REAL
 );
+CREATE TABLE IF NOT EXISTS calls (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  chat_id INTEGER NOT NULL,
+  symbol TEXT NOT NULL,
+  token_address TEXT NOT NULL,
+  pair_address TEXT NOT NULL,
+  chain_id TEXT NOT NULL,
+  entry_price REAL NOT NULL,
+  entry_mcap REAL,
+  call_type TEXT DEFAULT 'call',
+  score REAL,
+  reasoning TEXT,
+  called_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_calls_chat ON calls(chat_id, called_at);
+CREATE INDEX IF NOT EXISTS idx_calls_token ON calls(token_address, called_at);
 `);
 
 export interface WhaleRow {
@@ -155,6 +171,59 @@ export interface LeaderboardEntry {
 
 export function getLeaderboard(limit = 10): LeaderboardEntry[] {
   return db.prepare("SELECT user_id, username, scan_count, best_mcap FROM scan_leaderboard ORDER BY scan_count DESC LIMIT ?").all(limit) as unknown as LeaderboardEntry[];
+}
+
+// ─── CALL TRACKING ──────────────────────────────────────
+export interface CallRow {
+  id: number;
+  chatId: number;
+  symbol: string;
+  tokenAddress: string;
+  pairAddress: string;
+  chainId: string;
+  entryPrice: number;
+  entryMcap: number | null;
+  callType: string;
+  score: number | null;
+  reasoning: string | null;
+  calledAt: number;
+}
+
+export function addCall(c: {
+  chatId: number; symbol: string; tokenAddress: string; pairAddress: string;
+  chainId: string; entryPrice: number; entryMcap?: number; score?: number; reasoning?: string;
+}): number {
+  const res = db.prepare(
+    `INSERT INTO calls (chat_id, symbol, token_address, pair_address, chain_id, entry_price, entry_mcap, score, reasoning, called_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(c.chatId, c.symbol.toUpperCase(), c.tokenAddress.toLowerCase(), c.pairAddress, c.chainId, c.entryPrice, c.entryMcap ?? null, c.score ?? null, c.reasoning ?? null, Date.now());
+  return Number(res.lastInsertRowid);
+}
+
+export function getCalls(chatId: number, days = 30): CallRow[] {
+  const since = Date.now() - days * 86400000;
+  return db.prepare(
+    `SELECT id, chat_id AS chatId, symbol, token_address AS tokenAddress, pair_address AS pairAddress,
+     chain_id AS chainId, entry_price AS entryPrice, entry_mcap AS entryMcap, call_type AS callType,
+     score, reasoning, called_at AS calledAt FROM calls WHERE chat_id = ? AND called_at > ? ORDER BY called_at DESC`
+  ).all(chatId, since) as unknown as CallRow[];
+}
+
+export function getAllCalls(days = 30): CallRow[] {
+  const since = Date.now() - days * 86400000;
+  return db.prepare(
+    `SELECT id, chat_id AS chatId, symbol, token_address AS tokenAddress, pair_address AS pairAddress,
+     chain_id AS chainId, entry_price AS entryPrice, entry_mcap AS entryMcap, call_type AS callType,
+     score, reasoning, called_at AS calledAt FROM calls WHERE called_at > ? ORDER BY called_at DESC`
+  ).all(since) as unknown as CallRow[];
+}
+
+export function getCallsByToken(tokenAddress: string): CallRow[] {
+  return db.prepare(
+    `SELECT id, chat_id AS chatId, symbol, token_address AS tokenAddress, pair_address AS pairAddress,
+     chain_id AS chainId, entry_price AS entryPrice, entry_mcap AS entryMcap, call_type AS callType,
+     score, reasoning, called_at AS calledAt FROM calls WHERE token_address = ? ORDER BY called_at DESC`
+  ).all(tokenAddress.toLowerCase()) as unknown as CallRow[];
 }
 
 const MAX_SNAPSHOTS = 120;

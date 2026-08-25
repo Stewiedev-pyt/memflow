@@ -16,7 +16,10 @@ async function main(): Promise<void> {
   console.log("📡 watch engine running (60s polling)");
   runPolling(bot).catch((err) => {
     console.error("Polling crashed:", err.message);
-    process.exit(1);
+    if (err.message.includes("409")) {
+      console.log("Retrying in 10s...");
+      setTimeout(() => runPolling(bot).catch(() => {}), 10_000);
+    }
   });
 
   const shutdown = async (): Promise<void> => {

@@ -422,3 +422,345 @@ function calculateRisk(hp: any, rc: any): string {
   if (score >= 10) return "MEDIUM";
   return "LOW";
 }
+
+// ─── WALLET ANALYZER ──────────────────────────────────────
+export async function actionWalletAnalyzer(wallet: string): Promise<ActionResult> {
+  try {
+    const { getWalletTokenAccounts, getSolBalance, getSignatures } = await import("../sources/wallet.js");
+
+    const [solBalance, tokenAccounts, signatures] = await Promise.all([
+      getSolBalance(wallet),
+      getWalletTokenAccounts(wallet),
+      getSignatures(wallet, 50),
+    ]);
+
+    const mints = tokenAccounts.map((t) => t.mint).join(",");
+    let prices: Record<string, { price: number; mcap: number; change24h: number; symbol: string; name: string }> = {};
+
+    if (mints) {
+      try {
+        const res = await fetch(`https://api.dexscreener.com/tokens/v1/solana/${mints}`, {
+          signal: AbortSignal.timeout(15_000),
+        });
+        if (res.ok) {
+          const data = (await res.json()) as any[];
+          for (const p of data) {
+            prices[p.baseToken.address] = {
+              price: Number(p.priceUsd) || 0,
+              mcap: p.marketCap ?? 0,
+              change24h: p.priceChange?.h24 ?? 0,
+              symbol: p.baseToken.symbol,
+              name: p.baseToken.name,
+            };
+          }
+        }
+      } catch { /* continue */ }
+    }
+
+    let totalValue = solBalance * 140;
+    let totalPnl = 0;
+    const holdings: any[] = [];
+
+    for (const t of tokenAccounts) {
+      const info = prices[t.mint] ?? { price: 0, mcap: 0, change24h: 0, symbol: t.mint.slice(0, 6), name: "Unknown" };
+      const value = t.uiAmount * info.price;
+      totalValue += value;
+      holdings.push({
+        symbol: info.symbol,
+        name: info.name,
+        mint: t.mint,
+        balance: t.uiAmount,
+        price: info.price,
+        value,
+        change24h: info.change24h,
+        mcap: info.mcap,
+      });
+    }
+
+    holdings.sort((a, b) => b.value - a.value);
+
+    const recentSigs = signatures.slice(0, 10);
+    const firstTx = signatures[signatures.length - 1];
+    const lastTx = signatures[0];
+    const ageDays = firstTx?.blockTime ? (Date.now() / 1000 - firstTx.blockTime) / 86400 : 0;
+    const txFrequency = ageDays > 0 ? signatures.length / ageDays : 0;
+
+    return {
+      success: true,
+      data: {
+        wallet,
+        solBalance,
+        totalValueUsd: totalValue,
+        holdingsCount: holdings.length,
+        holdings,
+        stats: {
+          ageDays: Math.round(ageDays),
+          totalTransactions: signatures.length,
+          txFrequency: txFrequency.toFixed(2),
+          firstTx: firstTx?.blockTime ? new Date(firstTx.blockTime * 1000).toISOString() : null,
+          lastTx: lastTx?.blockTime ? new Date(lastTx.blockTime * 1000).toISOString() : null,
+        },
+        recentActivity: recentSigs.map((s) => ({
+          signature: s.signature,
+          time: s.blockTime ? new Date(s.blockTime * 1000).toISOString() : null,
+          success: !s.err,
+        })),
+      },
+    };
+  } catch (err) {
+    return { success: false, data: null, error: (err as Error).message };
+  }
+}
+
+// ─── WALLET TRACKER ──────────────────────────────────────
+const trackedWallets = new Map<string, { label: string; addedAt: number }>();
+
+export async function actionTrackWallet(wallet: string, label?: string): Promise<ActionResult> {
+  try {
+    if (!/^[\w]{32,44}$/.test(wallet)) {
+      return { success: false, data: null, error: "Invalid Solana wallet address" };
+    }
+    const entry = { label: label ?? wallet.slice(0, 8), addedAt: Date.now() };
+    trackedWallets.set(wallet, entry);
+    return {
+      success: true,
+      data: {
+        wallet,
+        label: entry.label,
+        message: `Now tracking ${entry.label}`,
+        totalTracked: trackedWallets.size,
+      },
+    };
+  } catch (err) {
+    return { success: false, data: null, error: (err as Error).message };
+  }
+}
+
+export async function actionUntrackWallet(wallet: string): Promise<ActionResult> {
+  const removed = trackedWallets.delete(wallet);
+  return {
+    success: removed,
+    data: { wallet, message: removed ? "Untracked" : "Not found" },
+  };
+}
+
+export async function actionTrackedWallets(): Promise<ActionResult> {
+  const list = Array.from(trackedWallets.entries()).map(([addr, info]) => ({
+    wallet: addr,
+    label: info.label,
+    addedAt: new Date(info.addedAt).toISOString(),
+  }));
+  return {
+    success: true,
+    data: { total: list.length, wallets: list },
+  };
+}
+
+// ─── TRENCHES (NEW TOKEN DISCOVERY) ──────────────────────
+export async function actionTrenches(): Promise<ActionResult> {
+  try {
+    const [pumpFun, dexNew] = await Promise.all([
+      fetchNewPumpFun(),
+      fetchNewDexScreener(),
+    ]);
+
+    const seen = new Set<string>();
+    const tokens: any[] = [];
+
+    for (const t of [...pumpFun, ...dexNew]) {
+      if (seen.has(t.address)) continue;
+      seen.add(t.address);
+      tokens.push(t);
+    }
+
+    const sorted = tokens
+      .sort((a, b) => {
+        const scoreA = (a.liq / (a.mcap || 1)) * 0.3 + a.buyPressure * 0.3 + (a.volume / (a.mcap || 1)) * 0.4;
+        const scoreB = (b.liq / (b.mcap || 1)) * 0.3 + b.buyPressure * 0.3 + (b.volume / (b.mcap || 1)) * 0.4;
+        return scoreB - scoreA;
+      })
+      .slice(0, 20);
+
+    return {
+      success: true,
+      data: { total: sorted.length, tokens: sorted },
+    };
+  } catch (err) {
+    return { success: false, data: null, error: (err as Error).message };
+  }
+}
+
+async function fetchNewPumpFun(): Promise<any[]> {
+  try {
+    const res = await fetch("https://frontend-api-v3.pump.fun/coins?limit=30&sort=created_timestamp&order=DESC&includeNsfw=false", {
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as any[];
+    return data.map((c: any) => ({
+      symbol: c.symbol,
+      name: c.name,
+      address: c.mint,
+      chain: "solana",
+      source: "pump.fun",
+      mcap: c.usd_market_cap ?? 0,
+      liq: 0,
+      volume: 0,
+      price: c.virtual_sol_reserves ? String(c.virtual_sol_reserves / c.virtual_token_reserves * 140) : "0",
+      buyPressure: 0.5,
+      ageMinutes: c.created_timestamp ? (Date.now() - c.created_timestamp) / 60000 : 0,
+      creator: c.creator ?? null,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+async function fetchNewDexScreener(): Promise<any[]> {
+  try {
+    const res = await fetch("https://api.dexscreener.com/latest/dex/search?q=sol", {
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { pairs?: any[] };
+    return (data.pairs ?? [])
+      .filter((p) => p.chainId === "solana" && p.marketCap && p.marketCap < 500_000 && p.marketCap > 5_000)
+      .map((p) => {
+        const buys = p.txns?.h1?.buys ?? 0;
+        const sells = p.txns?.h1?.sells ?? 0;
+        return {
+          symbol: p.baseToken.symbol,
+          name: p.baseToken.name,
+          address: p.baseToken.address,
+          chain: "solana",
+          source: "dexscreener",
+          mcap: p.marketCap ?? 0,
+          liq: p.liquidity?.usd ?? 0,
+          volume: p.volume?.h24 ?? 0,
+          price: p.priceUsd,
+          buyPressure: buys + sells > 0 ? buys / (buys + sells) : 0.5,
+          ageHours: p.pairCreatedAt ? (Date.now() - p.pairCreatedAt) / 3_600_000 : null,
+          creator: null,
+        };
+      });
+  } catch {
+    return [];
+  }
+}
+
+// ─── PORTFOLIO / PNL TRACKING ──────────────────────────────
+const portfolios = new Map<string, Map<string, { symbol: string; entryPrice: number; amount: number; entryTime: number }>>();
+
+export async function actionPortfolioAdd(
+  chatId: string,
+  symbol: string,
+  entryPrice: number,
+  amount: number
+): Promise<ActionResult> {
+  try {
+    if (!portfolios.has(chatId)) portfolios.set(chatId, new Map());
+    const portfolio = portfolios.get(chatId)!;
+
+    if (portfolio.has(symbol.toUpperCase())) {
+      const existing = portfolio.get(symbol.toUpperCase())!;
+      const avgPrice = (existing.entryPrice * existing.amount + entryPrice * amount) / (existing.amount + amount);
+      existing.entryPrice = avgPrice;
+      existing.amount += amount;
+      existing.symbol = symbol.toUpperCase();
+      return {
+        success: true,
+        data: { symbol: symbol.toUpperCase(), avgPrice: existing.entryPrice, totalAmount: existing.amount },
+      };
+    }
+
+    portfolio.set(symbol.toUpperCase(), {
+      symbol: symbol.toUpperCase(),
+      entryPrice,
+      amount,
+      entryTime: Date.now(),
+    });
+
+    return {
+      success: true,
+      data: { symbol: symbol.toUpperCase(), entryPrice, amount, totalPositions: portfolio.size },
+    };
+  } catch (err) {
+    return { success: false, data: null, error: (err as Error).message };
+  }
+}
+
+export async function actionPortfolioRemove(chatId: string, symbol: string): Promise<ActionResult> {
+  const portfolio = portfolios.get(chatId);
+  if (!portfolio || !portfolio.has(symbol.toUpperCase())) {
+    return { success: false, data: null, error: `No position for ${symbol.toUpperCase()}` };
+  }
+  portfolio.delete(symbol.toUpperCase());
+  return { success: true, data: { symbol: symbol.toUpperCase(), message: "Position removed" } };
+}
+
+export async function actionPortfolioView(chatId: string): Promise<ActionResult> {
+  const portfolio = portfolios.get(chatId);
+  if (!portfolio || portfolio.size === 0) {
+    return { success: true, data: { positions: [], message: "No positions tracked" } };
+  }
+
+  const symbols = Array.from(portfolio.keys());
+  let prices: Record<string, { price: number; symbol: string }> = {};
+
+  try {
+    const searchQuery = symbols.slice(0, 5).join("|");
+    const res = await fetch(`https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(searchQuery)}`, {
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (res.ok) {
+      const data = (await res.json()) as { pairs?: any[] };
+      for (const p of data.pairs ?? []) {
+        const sym = p.baseToken.symbol.toUpperCase();
+        if (!prices[sym] && symbols.includes(sym)) {
+          prices[sym] = { price: Number(p.priceUsd) || 0, symbol: sym };
+        }
+      }
+    }
+  } catch { /* continue */ }
+
+  const positions: any[] = [];
+  let totalInvested = 0;
+  let totalCurrent = 0;
+
+  for (const [sym, pos] of portfolio) {
+    const currentPrice = prices[sym]?.price ?? 0;
+    const invested = pos.entryPrice * pos.amount;
+    const current = currentPrice * pos.amount;
+    const pnl = current - invested;
+    const pnlPct = invested > 0 ? (pnl / invested) * 100 : 0;
+
+    totalInvested += invested;
+    totalCurrent += current;
+
+    positions.push({
+      symbol: sym,
+      entryPrice: pos.entryPrice,
+      currentPrice,
+      amount: pos.amount,
+      invested,
+      current,
+      pnl,
+      pnlPct,
+      holdDays: Math.round((Date.now() - pos.entryTime) / 86400000),
+    });
+  }
+
+  const totalPnl = totalCurrent - totalInvested;
+  const totalPnlPct = totalInvested > 0 ? (totalPnl / totalInvested) * 100 : 0;
+
+  return {
+    success: true,
+    data: {
+      totalInvested,
+      totalCurrent,
+      totalPnl,
+      totalPnlPct,
+      positions,
+    },
+  };
+}

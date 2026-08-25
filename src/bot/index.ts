@@ -12,6 +12,10 @@ import { registerVlCommand, handleVl } from "./commands/vl.js";
 import { registerGemsCommand } from "./commands/gems.js";
 import { registerCallsCommand } from "./commands/calls.js";
 import { registerTopCoinsCommand } from "./commands/topcoins.js";
+import { registerWalletCommand } from "./commands/wallet.js";
+import { registerTrackCommand } from "./commands/track.js";
+import { registerTrenchesCommand } from "./commands/trenches.js";
+import { registerPortfolioCommand } from "./commands/portfolio.js";
 import { clearPending, takePending } from "./pending.js";
 import { config } from "../config.js";
 import { handleAgentMessage, toggleAutoMode } from "../agent/telegram.js";
@@ -32,6 +36,10 @@ export function createBot(): Bot {
   registerGemsCommand(bot);
   registerCallsCommand(bot);
   registerTopCoinsCommand(bot);
+  registerWalletCommand(bot);
+  registerTrackCommand(bot);
+  registerTrenchesCommand(bot);
+  registerPortfolioCommand(bot);
 
   bot.command("cancel", async (ctx) => {
     if (!ctx.chat) return;
@@ -80,6 +88,12 @@ export function createBot(): Bot {
     { command: "gems", description: "Find legit low MC gems" },
     { command: "topcoins", description: "List high MC tokens ($1M+) by chain" },
     { command: "calls", description: "Get 6-10 daily calls with entry/exit" },
+    { command: "wallet", description: "Analyze any Solana wallet" },
+    { command: "track", description: "Track a wallet for activity" },
+    { command: "tracklist", description: "Show all tracked wallets" },
+    { command: "untrack", description: "Stop tracking a wallet" },
+    { command: "trenches", description: "New token discovery — launches" },
+    { command: "portfolio", description: "Track your positions and PnL" },
     { command: "auto", description: "Toggle auto mode — get calls every 4h" },
     { command: "cancel", description: "Cancel the current prompt" },
   ]);

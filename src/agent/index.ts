@@ -103,6 +103,26 @@ export class MemflowAgent {
       return { action: "news", ...result, timestamp };
     }
 
+    // Wallet analyzer
+    if (text.includes("wallet") || text.includes("analyze") || text.includes("holder")) {
+      const addr = text.match(/[\w]{32,44}/)?.[0];
+      if (addr) {
+        const result = await actions.actionWalletAnalyzer(addr);
+        return { action: "wallet", ...result, timestamp };
+      }
+    }
+
+    // Trenches
+    if (text.includes("trench") || text.includes("new token") || text.includes("launch") || text.includes("pump.fun")) {
+      const result = await actions.actionTrenches();
+      return { action: "trenches", ...result, timestamp };
+    }
+
+    // Portfolio
+    if (text.includes("portfolio") || text.includes("position") || text.includes("my bag")) {
+      return { action: "portfolio", success: true, data: { message: "Use /portfolio add <SYMBOL> <price> <amount> or /portfolio to view" }, timestamp };
+    }
+
     // Help
     if (text === "help" || text === "?") {
       return {
@@ -115,11 +135,13 @@ export class MemflowAgent {
             "calls — get trading signals with entry/exit",
             "holders <token> — holder distribution",
             "traders <token> — smart money activity",
+            "wallet <address> — analyze any Solana wallet",
+            "track <wallet> — track wallet activity",
+            "trenches — new token discovery",
+            "portfolio — track your PnL",
             "top tokens — list high MC tokens ($1M+) by chain",
-            "top tokens on solana — chain-specific list",
             "gems — find low MC gems ($50K-$500K)",
             "market — global market overview",
-            "fear — fear & greed index",
             "news <ticker> — latest news",
           ],
         },

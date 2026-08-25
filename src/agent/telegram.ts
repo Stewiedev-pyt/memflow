@@ -175,12 +175,63 @@ function formatResponse(response: AgentResponse): string {
     case "topTraders": return formatTopTraders(response.data);
     case "gems": return formatGems(response.data);
     case "topTokens": return formatTopTokens(response.data);
+    case "wallet": return formatWallet(response.data);
+    case "trenches": return formatTrenches(response.data);
+    case "portfolio": return formatPortfolio(response.data);
     case "market":
     case "fearGreed": return formatMarket(response.data);
     case "news": return formatNews(response.data);
     case "help": return formatHelp();
     default: return truncate(JSON.stringify(response.data, null, 2));
   }
+}
+
+// ─── WALLET FORMATTER ──────────────────────────────────────
+function formatWallet(d: any): string {
+  if (!d) return "❌ No wallet data";
+  const lines = [
+    `🔍 <b>WALLET ANALYZER</b>`,
+    `<code>${d.wallet}</code>\n`,
+    `💰 SOL: ${d.solBalance?.toFixed(4)} | 💎 Total: $${fmtUsd(d.totalValueUsd)}`,
+    `🪙 Holdings: ${d.holdingsCount} tokens\n`,
+  ];
+  for (const h of (d.holdings ?? []).slice(0, 8)) {
+    const change = h.change24h > 0 ? `+${h.change24h.toFixed(1)}%` : `${h.change24h.toFixed(1)}%`;
+    lines.push(`• ${esc(h.symbol)} — $${fmtUsd(h.value)} | 24h ${change}`);
+  }
+  if (d.stats) {
+    lines.push(`\n📊 Age: ${d.stats.ageDays}d | TXs: ${d.stats.totalTransactions} | ${d.stats.txFrequency}/day`);
+  }
+  return lines.join("\n");
+}
+
+// ─── TRENCHES FORMATTER ──────────────────────────────────────
+function formatTrenches(d: any): string {
+  if (!d?.tokens || d.tokens.length === 0) return "❌ No new tokens found";
+  const lines = [`🚨 <b>TRENCHES — NEW TOKENS</b> (${d.total})\n`];
+  for (const t of d.tokens.slice(0, 12)) {
+    const src = t.source === "pump.fun" ? "🚀" : "📊";
+    const mc = t.mcap > 0 ? `$${fmtMcap(t.mcap)}` : "No MC";
+    const liq = t.liq > 0 ? `$${fmtUsd(t.liq)}` : "No liq";
+    lines.push(`${src} <b>${esc(t.symbol)}</b> — MC: ${mc} | Liq: ${liq}`);
+  }
+  return lines.join("\n");
+}
+
+// ─── PORTFOLIO FORMATTER ──────────────────────────────────────
+function formatPortfolio(d: any): string {
+  if (!d?.positions || d.positions.length === 0) return "📊 No positions. Use /portfolio add <SYM> <price> <amount>";
+  const lines = [
+    `📊 <b>PORTFOLIO</b>\n`,
+    `💰 Invested: $${fmtUsd(d.totalInvested)} | Current: $${fmtUsd(d.totalCurrent)}`,
+    `📈 PnL: $${fmtUsd(d.totalPnl)} (${d.totalPnlPct > 0 ? "+" : ""}${d.totalPnlPct?.toFixed(2)}%)\n`,
+  ];
+  for (const p of d.positions) {
+    const e = p.pnl >= 0 ? "🟢" : "🔴";
+    const s = p.pnl >= 0 ? "+" : "";
+    lines.push(`${e} <b>${esc(p.symbol)}</b> — Entry $${p.entryPrice?.toFixed(6)} → $${p.currentPrice?.toFixed(6)} | PnL ${s}$${fmtUsd(Math.abs(p.pnl))} (${s}${p.pnlPct?.toFixed(2)}%)`);
+  }
+  return lines.join("\n");
 }
 
 // ─── INSTANCES ──────────────────────────────────────────────

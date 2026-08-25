@@ -90,6 +90,10 @@ export function startWatchEngine(bot: Bot): NodeJS.Timeout {
       if (tickCount % CHART_ALERT_INTERVAL_TICKS === 0 && tickCount > 0) {
         await sendChartAlerts(bot, pairs);
       }
+
+      if (tickCount % 2 === 0) {
+        await checkPriceAlerts(bot);
+      }
     } catch (err) {
       console.error("[watch-engine]", (err as Error).message);
     }
@@ -436,5 +440,60 @@ export function registerAlertChat(chatId: number): void {
   if (!alertChats.has(chatId)) {
     alertChats.add(chatId);
     saveAlertChat(chatId);
+  }
+}
+
+async function checkPriceAlerts(bot: Bot): Promise<void> {
+  try {
+    const { getActiveAlerts, markAlertTriggered } = await import("../bot/commands/alert.js");
+    const { getPairsByAddresses } = await import("../sources/dexscreener.js");
+
+    const alerts = getActiveAlerts();
+    if (alerts.length === 0) return;
+
+    const pairAddresses = [...new Set(alerts.map((a) => a.pairAddress))];
+    const pairs = await getPairsByAddresses(pairAddresses);
+    const pairMap = new Map(pairs.map((p) => [p.pairAddress, p]));
+
+    for (const alert of alerts) {
+      const pair = pairMap.get(alert.pairAddress);
+      if (!pair) continue;
+
+      const price = parseFloat(pair.priceUsd);
+      const mc = pair.marketCap ?? 0;
+      let triggered = false;
+
+      switch (alert.type) {
+        case "price_above":
+          triggered = price >= alert.target;
+          break;
+        case "price_below":
+          triggered = price <= alert.target;
+          break;
+        case "mc_above":
+          triggered = mc >= alert.target;
+          break;
+        case "mc_below":
+          triggered = mc <= alert.target;
+          break;
+      }
+
+      if (triggered) {
+        markAlertTriggered(alert.id);
+        const emoji = alert.type.includes("above") ? "📈" : "📉";
+        const msg = [
+          `${emoji} *ALERT TRIGGERED!*`,
+          "",
+          `Token: *${alert.symbol}* (${alert.chainId})`,
+          `Rule: ${alert.type.replace("_", " ")} ${alert.target}`,
+          `Current: $${price} · MC: $${mc.toLocaleString()}`,
+          `ID: \`${alert.id}\``,
+        ].join("\n");
+
+        await bot.api.sendMessage(alert.chatId, msg, { parse_mode: "Markdown" });
+      }
+    }
+  } catch (err) {
+    console.error("[alert-check]", (err as Error).message);
   }
 }

@@ -18,6 +18,9 @@ import { registerTrenchesCommand } from "./commands/trenches.js";
 import { registerPortfolioCommand } from "./commands/portfolio.js";
 import { registerStatsCommand } from "./commands/stats.js";
 import { registerSmartCommand } from "./commands/smart.js";
+import { registerChartCommand } from "./commands/chart.js";
+import { registerAlertCommand, getActiveAlerts, markAlertTriggered } from "./commands/alert.js";
+import { registerCopyCommand, getCopyRules, incrementCopyCount, wasRecentlyCopied } from "./commands/copy.js";
 import { clearPending, takePending } from "./pending.js";
 import { config } from "../config.js";
 import { handleAgentMessage, toggleAutoMode } from "../agent/telegram.js";
@@ -44,6 +47,9 @@ export function createBot(): Bot {
   registerPortfolioCommand(bot);
   registerStatsCommand(bot);
   registerSmartCommand(bot);
+  registerChartCommand(bot);
+  registerAlertCommand(bot);
+  registerCopyCommand(bot);
 
   bot.command("cancel", async (ctx) => {
     if (!ctx.chat) return;
@@ -109,6 +115,9 @@ export async function initBot(bot: Bot): Promise<string> {
     { command: "portfolio", description: "Track your positions and PnL" },
     { command: "stats", description: "Call performance — win rate, hit rate, returns" },
     { command: "smart", description: "Smart money signals from Binance tracking" },
+    { command: "chart", description: "Price chart with candles and volume" },
+    { command: "alert", description: "Set price/MC alerts on tokens" },
+    { command: "copy", description: "Copy trade — mirror whale wallets" },
     { command: "auto", description: "Toggle auto mode — get calls every 4h" },
     { command: "cancel", description: "Cancel the current prompt" },
   ]);

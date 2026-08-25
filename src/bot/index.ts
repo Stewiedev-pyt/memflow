@@ -51,6 +51,28 @@ export function createBot(): Bot {
   registerAlertCommand(bot);
   registerCopyCommand(bot);
 
+  bot.command("start", async (ctx) => {
+    if (!ctx.chat) return;
+    await ctx.reply(
+      [
+        "🌊 *Welcome to memflow!*",
+        "",
+        "Meme-token intelligence on Solana, ETH, BSC, Base.",
+        "",
+        "Type /help to see all 30 commands.",
+        "",
+        "Quick start:",
+        "• /scan PEPE — full token scan",
+        "• /calls — get trade calls",
+        "• /chart PEPE — price chart",
+        "• /alert add PEPE price_above 0.001 — set alert",
+        "• /copy add <wallet> — copy trade a whale",
+        "• /smart — smart money signals",
+      ].join("\n"),
+      { parse_mode: "Markdown" }
+    );
+  });
+
   bot.command("cancel", async (ctx) => {
     if (!ctx.chat) return;
     clearPending(ctx.chat.id);
@@ -83,7 +105,7 @@ export function createBot(): Bot {
   });
 
   bot.catch((err) => {
-    console.error("Bot error:", err.error);
+    console.error("Bot error:", err.error?.message ?? err.error ?? err);
   });
 
   return bot;

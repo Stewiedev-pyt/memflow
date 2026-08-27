@@ -53,24 +53,90 @@ export function createBot(): Bot {
 
   bot.command("start", async (ctx) => {
     if (!ctx.chat) return;
-    await ctx.reply(
-      [
-        "🌊 *Welcome to memflow!*",
-        "",
-        "Meme-token intelligence on Solana, ETH, BSC, Base.",
-        "",
-        "Type /help to see all 30 commands.",
-        "",
-        "Quick start:",
-        "• /scan PEPE — full token scan",
-        "• /calls — get trade calls",
-        "• /chart PEPE — price chart",
-        "• /alert add PEPE price_above 0.001 — set alert",
-        "• /copy add <wallet> — copy trade a whale",
-        "• /smart — smart money signals",
-      ].join("\n"),
-      { parse_mode: "Markdown" }
-    );
+    try {
+      await ctx.reply(
+        [
+          "🌊 *Welcome to memflow!*",
+          "",
+          "Meme-token intelligence on Solana, ETH, BSC, Base.",
+          "",
+          "Type /help to see all 30 commands.",
+          "",
+          "Quick start:",
+          "• /scan PEPE — full token scan",
+          "• /calls — get trade calls",
+          "• /chart PEPE — price chart",
+          "• /alert add PEPE price_above 0.001 — set alert",
+          "• /copy add <wallet> — copy trade a whale",
+          "• /smart — smart money signals",
+        ].join("\n"),
+        { parse_mode: "Markdown" }
+      );
+    } catch {
+      await ctx.reply("Welcome to memflow! Type /help to see all commands.");
+    }
+  });
+
+  bot.command("help", async (ctx) => {
+    if (!ctx.chat) return;
+    try {
+      await ctx.reply(
+        [
+          "🤖 *memflow — all commands*",
+          "",
+          "*Scan & Analysis*",
+          "/scan <token> — full token scan",
+          "/find <token> — find the REAL token among clones",
+          "/brief <token> — technicals + news briefing",
+          "/audit <contract> — security audit",
+          "/nh <token> — notable holders by category",
+          "/vl <token> — volume + liquidity analysis",
+          "",
+          "*Trading*",
+          "/calls — daily trade calls with entry/exit",
+          "/top <token> — top 10 traders",
+          "/snipers <token> — who sniped at launch",
+          "/smart — smart money signals (Binance)",
+          "/chart <token> — price chart with candles",
+          "",
+          "*Discovery*",
+          "/runners — trending tokens",
+          "/gems — low MC gems ($50K-$500K)",
+          "/topcoins — high MC tokens ($1M+)",
+          "/trenches — new token launches",
+          "",
+          "*Tracking*",
+          "/watch <token> — track price/flow alerts",
+          "/watchlist — show tracked tokens",
+          "/unwatch <token> — stop tracking",
+          "/track <wallet> — track wallet activity",
+          "/tracklist — show tracked wallets",
+          "/untrack <wallet> — stop tracking wallet",
+          "",
+          "*Alerts & Copy*",
+          "/alert add <token> <type> <value> — set price/MC alert",
+          "/alert list — view your alerts",
+          "/alert remove <id> — cancel alert",
+          "/copy add <wallet> — copy trade a whale",
+          "/copy list — view copy trades",
+          "/copy config <id> auto on/off — toggle auto-buy",
+          "",
+          "*Portfolio & Stats*",
+          "/portfolio — track positions and PnL",
+          "/stats — call performance",
+          "/wallet <address> — analyze Solana wallet",
+          "",
+          "*Other*",
+          "/auto — toggle auto mode (calls every 4h)",
+          "/cancel — cancel current prompt",
+          "",
+          "Or just type naturally — stewie understands!",
+        ].join("\n"),
+        { parse_mode: "Markdown" }
+      );
+    } catch {
+      await ctx.reply("See /start for quick commands, or just type naturally!");
+    }
   });
 
   bot.command("cancel", async (ctx) => {

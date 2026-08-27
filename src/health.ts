@@ -5,7 +5,7 @@ import crypto from "node:crypto";
 interface Job {
   id: string;
   blockchainIdentifier: string;
-  status: "awaiting_payment" | "running" | "completed" | "failed";
+  status: "awaiting_payment" | "running" | "completed" | "failed" | "awaiting_input";
   input: Record<string, any>;
   result: any;
   resultHash?: string;

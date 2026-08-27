@@ -78,7 +78,7 @@ export function registerChartCommand(bot: Bot) {
 
     await ctx.reply(`📊 Generating chart for ${input}...`);
 
-    const pairs = await searchPairs(input, 1);
+    const pairs = await searchPairs(input);
     if (pairs.length === 0) {
       return ctx.reply(`❌ No results for "${input}". Try a different name or address.`);
     }
@@ -112,7 +112,7 @@ export function registerChartCommand(bot: Bot) {
     const lines = [
       `📊 *${esc(symbol)} — ${esc(name)}*`,
       `*${chainName.toUpperCase()}*\n`,
-      `Current: ${fmtUsd(best.priceUsd)} · MC: ${fmtMcap(best.marketCap)}`,
+      `Current: ${fmtUsd(parseFloat(best.priceUsd ?? "0"))} · MC: ${fmtMcap(best.marketCap ?? null)}`,
       `Liq: ${fmtUsd(best.liquidity?.usd)} · Vol 24h: ${fmtUsd(best.volume?.h24)}`,
       `${candles.length} candles (1h) · ${new Date(candles[candles.length - 1].ts).toUTCString()}${techNote}`,
     ];

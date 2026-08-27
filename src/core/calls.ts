@@ -109,10 +109,11 @@ async function deepCheckEvm(tokenAddress: string, chainId: string): Promise<{ sa
     const chain = chainId === "ethereum" ? "1" : chainId === "bsc" ? "56" : chainId === "base" ? "8453" : "1";
     const hp = await auditEvmViaHoneypot(tokenAddress, chain);
     if (!hp) return { safe: true, details: "check skipped" };
-    if (hp.isHoneypot) return { safe: false, details: "HONEYPOT" };
-    if (hp.simulationSuccess === false) return { safe: true, details: "sim failed, proceed" };
-    if (hp.buyTax && hp.buyTax > 25) return { safe: false, details: `buy tax ${hp.buyTax}%` };
-    if (hp.sellTax && hp.sellTax > 25) return { safe: false, details: `sell tax ${hp.sellTax}%` };
+    const r = hp.result;
+    if (r.honeypotResult?.isHoneypot) return { safe: false, details: "HONEYPOT" };
+    if (r.simulationSuccess === false) return { safe: true, details: "sim failed, proceed" };
+    if (r.simulationResult?.buyTax && r.simulationResult.buyTax > 25) return { safe: false, details: `buy tax ${r.simulationResult.buyTax}%` };
+    if (r.simulationResult?.sellTax && r.simulationResult.sellTax > 25) return { safe: false, details: `sell tax ${r.simulationResult.sellTax}%` };
     return { safe: true, details: "passed" };
   } catch {
     return { safe: true, details: "check skipped" };

@@ -237,7 +237,7 @@ export function createMasumiServer(port = 8080): express.Express {
    * Buyer provides additional input for jobs that require it.
    */
   app.post("/provide_input", (req, res) => {
-    const { job_id, input_data, input_schema_hash } = req.body;
+    const { job_id, input_data } = req.body;
     const job = jobs.get(job_id);
     if (!job) {
       res.status(404).json({ error: "job not found" });

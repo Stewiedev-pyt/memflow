@@ -1,6 +1,8 @@
 export interface RugcheckSummary {
   risks: Array<{ name?: string; value?: string; description?: string; level?: string }>;
   score_normalised?: number;
+  score?: number;
+  topHolders?: Array<{ percentage: number; address?: string }>;
 }
 
 const KNOWN_MINTS = new Set([

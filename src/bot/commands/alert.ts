@@ -112,14 +112,14 @@ export function registerAlertCommand(bot: Bot) {
       }
 
       const { searchPairs } = await import("../../sources/dexscreener.js");
-      const pairs = await searchPairs(token, 1);
+      const pairs = await searchPairs(token);
       if (pairs.length === 0) {
         return ctx.reply(`❌ No results for "${token}".`);
       }
 
       const best = pairs[0];
       const id = alertId();
-      const currentPrice = parseFloat(best.priceUsd);
+      const currentPrice = parseFloat(best.priceUsd ?? "0");
       const mc = best.marketCap ?? 0;
 
       let alreadyMet = false;

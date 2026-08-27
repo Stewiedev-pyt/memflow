@@ -51,8 +51,11 @@ export interface EvmAudit {
   result: HoneypotResult;
 }
 
-export async function auditEvmViaHoneypot(address: string): Promise<EvmAudit | null> {
-  for (const chain of EVM_CHAINS) {
+export async function auditEvmViaHoneypot(address: string, chainId?: string): Promise<EvmAudit | null> {
+  const chains = chainId
+    ? EVM_CHAINS.filter((c) => String(c.id) === chainId)
+    : EVM_CHAINS;
+  for (const chain of chains) {
     try {
       const res = await fetch(
         `https://api.honeypot.is/v2/IsHoneypot?address=${address}&chainID=${chain.id}`,

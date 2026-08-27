@@ -458,7 +458,6 @@ export async function actionWalletAnalyzer(wallet: string): Promise<ActionResult
     }
 
     let totalValue = solBalance * 140;
-    let totalPnl = 0;
     const holdings: any[] = [];
 
     for (const t of tokenAccounts) {

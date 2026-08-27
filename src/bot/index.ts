@@ -19,8 +19,8 @@ import { registerPortfolioCommand } from "./commands/portfolio.js";
 import { registerStatsCommand } from "./commands/stats.js";
 import { registerSmartCommand } from "./commands/smart.js";
 import { registerChartCommand } from "./commands/chart.js";
-import { registerAlertCommand, getActiveAlerts, markAlertTriggered } from "./commands/alert.js";
-import { registerCopyCommand, getCopyRules, incrementCopyCount, wasRecentlyCopied } from "./commands/copy.js";
+import { registerAlertCommand } from "./commands/alert.js";
+import { registerCopyCommand } from "./commands/copy.js";
 import { clearPending, takePending } from "./pending.js";
 import { config } from "../config.js";
 import { handleAgentMessage, toggleAutoMode } from "../agent/telegram.js";
@@ -105,7 +105,7 @@ export function createBot(): Bot {
   });
 
   bot.catch((err) => {
-    console.error("Bot error:", err.error?.message ?? err.error ?? err);
+    console.error("Bot error:", (err as any).error?.message ?? (err as any).error ?? err);
   });
 
   return bot;

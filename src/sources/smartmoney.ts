@@ -18,7 +18,7 @@ export interface SmartMoneySignal {
 
 export async function getSmartMoneySignals(chain: string = "solana", limit: number = 20): Promise<SmartMoneySignal[]> {
   try {
-    const chainId = chain === "solana" ? "CT_501" : chain === "bsc" ? "56" : chain === "ethereum" ? "1" : "CT_501";
+    const chainId = chain === "solana" ? "CT_501" : chain === "bsc" ? "56" : "CT_501";
     const res = await fetch("https://web3.binance.com/bapi/defi/v1/public/wallet-direct/buw/wallet/web/signal/smart-money/ai", {
       method: "POST",
       headers: {
@@ -44,13 +44,4 @@ export async function getSmartMoneySignals(chain: string = "solana", limit: numb
   }
 }
 
-export async function getSmartMoneyAllChains(limit: number = 10): Promise<SmartMoneySignal[]> {
-  const chains = ["solana", "bsc", "ethereum"];
-  const results = await Promise.allSettled(
-    chains.map((c) => getSmartMoneySignals(c, limit))
-  );
-  const all = results
-    .filter((r) => r.status === "fulfilled")
-    .flatMap((r) => (r as PromiseFulfilledResult<SmartMoneySignal[]>).value);
-  return all;
-}
+

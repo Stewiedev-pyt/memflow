@@ -33,6 +33,13 @@ export function removeAlert(id: string): boolean {
   return alerts.delete(id);
 }
 
+export function cleanAlerts(): void {
+  const cutoff = Date.now() - 3600_000;
+  for (const [id, a] of alerts) {
+    if (a.triggered && a.createdAt < cutoff) alerts.delete(id);
+  }
+}
+
 export function getAlertsForChat(chatId: number): AlertRule[] {
   return [...alerts.values()].filter((a) => a.chatId === chatId && !a.triggered);
 }
@@ -95,8 +102,8 @@ export function registerAlertCommand(bot: Bot) {
       const type = parts[2];
       const value = parseFloat(parts[3]);
 
-      if (!token || !type || isNaN(value)) {
-        return ctx.reply("Usage: `/alert add <token> <type> <value>`", { parse_mode: "Markdown" });
+      if (!token || !type || isNaN(value) || value <= 0) {
+        return ctx.reply("Usage: `/alert add <token> <type> <value>`\nValue must be a positive number.", { parse_mode: "Markdown" });
       }
 
       const validTypes = ["price_above", "price_below", "mc_above", "mc_below"];
@@ -112,6 +119,23 @@ export function registerAlertCommand(bot: Bot) {
 
       const best = pairs[0];
       const id = alertId();
+      const currentPrice = parseFloat(best.priceUsd);
+      const mc = best.marketCap ?? 0;
+
+      let alreadyMet = false;
+      switch (type) {
+        case "price_above": alreadyMet = currentPrice >= value; break;
+        case "price_below": alreadyMet = currentPrice <= value; break;
+        case "mc_above": alreadyMet = mc >= value; break;
+        case "mc_below": alreadyMet = mc <= value; break;
+      }
+
+      if (alreadyMet) {
+        return ctx.reply(
+          `⚠️ Condition already met! Current price: $${best.priceUsd}, MC: $${mc.toLocaleString()}.\nAlert not created.`,
+          { parse_mode: "Markdown" }
+        );
+      }
 
       const alert: AlertRule = {
         id,
@@ -122,7 +146,7 @@ export function registerAlertCommand(bot: Bot) {
         pairAddress: best.pairAddress,
         type: type as AlertRule["type"],
         target: value,
-        currentPrice: parseFloat(best.priceUsd),
+        currentPrice,
         createdAt: Date.now(),
         triggered: false,
       };

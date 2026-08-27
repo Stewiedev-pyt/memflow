@@ -93,7 +93,7 @@ export function registerChartCommand(bot: Bot) {
       return ctx.reply(`❌ Unsupported chain: ${chainName}`);
     }
 
-    const candles = await getOhlcv(network, best.pairAddress, "hour", 24);
+    const candles = await getOhlcv(network, best.pairAddress, "hour", 30);
     if (candles.length < 5) {
       return ctx.reply(`❌ Not enough price data for ${symbol}.`);
     }

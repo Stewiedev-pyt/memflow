@@ -94,6 +94,13 @@ export function startWatchEngine(bot: Bot): NodeJS.Timeout {
       if (tickCount % 2 === 0) {
         checkPriceAlerts(bot).catch((e) => console.error("[alert-check]", (e as Error).message));
       }
+
+      if (tickCount % 60 === 0 && tickCount > 0) {
+        const { cleanAlerts } = await import("../bot/commands/alert.js");
+        const { cleanRecentCopies } = await import("../bot/commands/copy.js");
+        cleanAlerts();
+        cleanRecentCopies();
+      }
     } catch (err) {
       console.error("[watch-engine]", (err as Error).message);
     }
@@ -459,7 +466,7 @@ async function checkPriceAlerts(bot: Bot): Promise<void> {
       const pair = pairMap.get(alert.pairAddress);
       if (!pair) continue;
 
-      const price = parseFloat(pair.priceUsd);
+      const price = parseFloat(pair.priceUsd ?? "0");
       const mc = pair.marketCap ?? 0;
       let triggered = false;
 

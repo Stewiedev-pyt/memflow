@@ -38,8 +38,19 @@ export function wasRecentlyCopied(wallet: string, tokenAddress: string): boolean
   const key = `${wallet}:${tokenAddress}`;
   const last = recentCopies.get(key);
   if (last && Date.now() - last < 300_000) return true;
-  recentCopies.set(key, Date.now());
   return false;
+}
+
+export function markCopied(wallet: string, tokenAddress: string): void {
+  const key = `${wallet}:${tokenAddress}`;
+  recentCopies.set(key, Date.now());
+}
+
+export function cleanRecentCopies(): void {
+  const cutoff = Date.now() - 300_000;
+  for (const [key, ts] of recentCopies) {
+    if (ts < cutoff) recentCopies.delete(key);
+  }
 }
 
 export function incrementCopyCount(id: string): void {
@@ -128,9 +139,11 @@ export function registerCopyCommand(bot: Bot) {
         case "liq":
           rule.minLiq = parseFloat(val) || 0;
           return ctx.reply(`✅ Min liquidity set to $${rule.minLiq}.`);
-        case "mc":
-          rule.maxMc = parseFloat(val) || Infinity;
-          return ctx.reply(`✅ Max MC set to $${rule.maxMc}.`);
+        case "mc": {
+          const parsed = parseFloat(val);
+          rule.maxMc = Number.isFinite(parsed) ? parsed : Infinity;
+          return ctx.reply(`✅ Max MC set to $${rule.maxMc === Infinity ? "unlimited" : rule.maxMc.toLocaleString()}.`);
+        }
         default:
           return ctx.reply("Unknown config key. Use: auto, amount, liq, mc");
       }
@@ -140,7 +153,7 @@ export function registerCopyCommand(bot: Bot) {
       const wallet = parts[1];
       const label = parts[2] || "";
 
-      if (!wallet || wallet.length < 20) {
+      if (!wallet || wallet.length < 32) {
         return ctx.reply("Usage: `/copy add <wallet_address> [label]`");
       }
 

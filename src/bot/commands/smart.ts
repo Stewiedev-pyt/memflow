@@ -2,13 +2,6 @@ import { Bot } from "grammy";
 import { getSmartMoneySignals, SmartMoneySignal } from "../../sources/smartmoney.js";
 import { esc } from "../format.js";
 
-function fmtPrice(n: number): string {
-  if (n >= 1) return `$${n.toFixed(2)}`;
-  if (n >= 0.01) return `$${n.toFixed(4)}`;
-  if (n >= 0.0001) return `$${n.toFixed(6)}`;
-  return `$${n.toFixed(10)}`;
-}
-
 function formatSignal(s: SmartMoneySignal, idx: number): string {
   const gain = parseFloat(s.maxGain);
   const gainStr = gain > 0 ? `+${gain.toFixed(1)}%` : `${gain.toFixed(1)}%`;
@@ -32,9 +25,9 @@ export function registerSmartCommand(bot: Bot) {
     const args = ctx.match?.trim();
     const chain = args?.toLowerCase() || "solana";
 
-    const validChains = ["solana", "bsc", "ethereum", "all"];
+    const validChains = ["solana", "bsc", "all"];
     if (!validChains.includes(chain)) {
-      return ctx.reply("Usage: /smart [solana|bsc|ethereum|all]");
+      return ctx.reply("Usage: /smart [solana|bsc|all]");
     }
 
     await ctx.reply(`🧠 Loading smart money signals for ${chain}...`);
@@ -42,8 +35,7 @@ export function registerSmartCommand(bot: Bot) {
     const signals = chain === "all"
       ? (await Promise.all([
           getSmartMoneySignals("solana", 10),
-          getSmartMoneySignals("bsc", 5),
-          getSmartMoneySignals("ethereum", 5),
+          getSmartMoneySignals("bsc", 10),
         ])).flat()
       : await getSmartMoneySignals(chain, 20);
 

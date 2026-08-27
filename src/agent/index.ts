@@ -194,6 +194,10 @@ export class MemflowAgent {
     console.log("[agent] auto mode stopped");
   }
 
+  isRunning(): boolean {
+    return this.running;
+  }
+
   // ─── HELPERS ──────────────────────────────────────
   private extractQuery(text: string, triggers: string[]): string {
     let cleaned = text;

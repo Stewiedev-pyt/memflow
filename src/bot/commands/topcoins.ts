@@ -1,4 +1,4 @@
-import { Bot, Context } from "grammy";
+import { Bot } from "grammy";
 import { actionTopTokens } from "../../agent/actions.js";
 import { fmtMcap, fmtUsd } from "../format.js";
 import { esc } from "../format.js";

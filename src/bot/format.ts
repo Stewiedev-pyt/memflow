@@ -2,6 +2,10 @@ export function esc(s: unknown): string {
   return String(s ?? "").replace(/[_*[\]()~`>#+=|{}.!-]/g, "\\$&");
 }
 
+export function escHtml(s: unknown): string {
+  return String(s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c] ?? c));
+}
+
 export function truncate(text: string, max = 4000): string {
   if (text.length <= max) return text;
   return text.slice(0, max - 20) + "\n\n_(truncated)_";

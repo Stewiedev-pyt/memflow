@@ -1,6 +1,6 @@
 import { Bot } from "grammy";
 import { actionWalletAnalyzer } from "../../agent/actions.js";
-import { esc, fmtUsd, fmtMcap } from "../format.js";
+import { esc, fmtUsd } from "../format.js";
 
 export function registerWalletCommand(bot: Bot) {
   bot.command("wallet", async (ctx) => {

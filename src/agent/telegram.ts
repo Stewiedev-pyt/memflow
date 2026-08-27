@@ -1,6 +1,6 @@
 import { Bot } from "grammy";
 import { MemflowAgent, AgentResponse } from "./index.js";
-import { esc, truncate, fmtMcap, fmtUsd } from "../bot/format.js";
+import { escHtml, truncate, fmtMcap, fmtUsd } from "../bot/format.js";
 
 // ─── CHAT SUBSCRIPTIONS ────────────────────────────────────
 const chatSubscriptions = new Map<number, boolean>();
@@ -19,16 +19,16 @@ function formatScan(d: any): string {
     "⚪ sideways";
 
   return [
-    `🔍 ${esc(d.symbol)} (${esc(d.chain)})`,
+    `🔍 <b>${escHtml(d.symbol)}</b> (${escHtml(d.chain)})`,
     "",
-    `Price: ${esc(d.price ?? "?")}`,
+    `Price: ${escHtml(d.price ?? "?")}`,
     `MC: ${fmtMcap(d.mcap)} | Liq: ${fmtUsd(d.liquidity)}`,
     `Vol 24h: ${fmtUsd(d.volume24h)} | 1h: ${d.priceChange1h != null ? `${d.priceChange1h > 0 ? "+" : ""}${d.priceChange1h.toFixed(1)}%` : "?"}`,
     `Buys/Sells: ${d.buys24h ?? "?"}/${d.sells24h ?? "?"} | Age: ${d.ageHours?.toFixed(1) ?? "?"}h`,
     "",
     `Trend: ${trend} | RSI: ${d.tech?.rsiValue?.toFixed(0) ?? "?"}`,
     "",
-    `Contract: \\[${esc(d.tokenAddress)}\\]`,
+    `Contract: <code>${escHtml(d.tokenAddress)}</code>`,
   ].join("\n");
 }
 
@@ -37,18 +37,18 @@ function formatCalls(calls: any[]): string {
   return calls.map((c) => {
     const risk = c.riskLevel === "LOW" ? "🟢" : c.riskLevel === "MEDIUM" ? "🟡" : "🟠";
     return [
-      `${risk} ${esc(c.symbol)} (${esc(c.chainId)}) — score ${c.score}`,
-      `Entry: ${esc(c.entryPrice)} → TP1: ${esc(c.target1)} → TP2: ${esc(c.target2)} | SL: ${esc(c.stopLoss)}`,
-      `MC ${fmtMcap(c.mcap)} | Liq ${fmtUsd(c.liquidityUsd)} | Vol ${fmtUsd(c.volH24)} | Buys ${(c.buyPressure * 100).toFixed(0)}%`,
+      `${risk} <b>${escHtml(c.symbol)}</b> (${escHtml(c.chainId)}) — score ${c.score}`,
+      `Entry: ${escHtml(c.entryPrice)} → TP1: ${escHtml(c.target1)} → TP2: ${escHtml(c.target2)} | SL: ${escHtml(c.stopLoss)}`,
+      `MC ${fmtMcap(c.mcap)} | Liq ${fmtUsd(c.liquidityUsd)} | Vol ${fmtUsd(c.volH24)} | Buys ${((c.buyPressure ?? 0) * 100).toFixed(0)}%`,
       `Why: ${c.reasons?.join(" · ") ?? "?"}`,
-      `CA: \\[${esc(c.tokenAddress)}\\]`,
+      `CA: <code>${escHtml(c.tokenAddress)}</code>`,
     ].join("\n");
   }).join("\n\n");
 }
 
 function formatAudit(d: any): string {
   if (!d) return "❌ No data";
-  const lines = [`🔒 AUDIT — ${esc(d.symbol)} (${esc(d.chain)})`];
+  const lines = [`🔒 <b>AUDIT — ${escHtml(d.symbol)}</b> (${escHtml(d.chain)})`];
   lines.push(`Risk: ${d.riskScore}`);
   if (d.honeypot) {
     lines.push(`Honeypot: ${d.honeypot.isHoneypot ? "YES" : "No"} | Buy tax: ${d.honeypot.buyTax}% | Sell tax: ${d.honeypot.sellTax}%`);
@@ -66,22 +66,22 @@ function formatHolders(d: any): string {
   if (!d) return "❌ No data";
   const c = d.categories;
   return [
-    `🐋 HOLDERS — ${esc(d.symbol)} (${esc(d.chain)})`,
+    `🐋 <b>HOLDERS — ${escHtml(d.symbol)}</b> (${escHtml(d.chain)})`,
     "",
     `Whales (5%+): ${c.whales.count} wallets (${c.whales.pct.toFixed(1)}%)`,
     `Sharks (1-5%): ${c.sharks.count} wallets (${c.sharks.pct.toFixed(1)}%)`,
     `Fish (0.1-1%): ${c.fish.count} wallets (${c.fish.pct.toFixed(1)}%)`,
-    `Small (<0.1%): ${c.small.count} wallets (${c.small.pct.toFixed(1)}%)`,
+    `Small (&lt;0.1%): ${c.small.count} wallets (${c.small.pct.toFixed(1)}%)`,
   ].join("\n");
 }
 
 function formatTopTraders(d: any): string {
   if (!d) return "❌ No data";
   if (!d.consensus || d.consensus.direction === "none") {
-    return `📊 TOP TRADERS — ${esc(d.symbol)} (${esc(d.chain)})\nNo clear consensus. ${d.note ?? ""}`;
+    return `📊 <b>TOP TRADERS — ${escHtml(d.symbol)}</b> (${escHtml(d.chain)})\nNo clear consensus. ${d.note ?? ""}`;
   }
   return [
-    `📊 TOP TRADERS — ${esc(d.symbol)} (${esc(d.chain)})`,
+    `📊 <b>TOP TRADERS — ${escHtml(d.symbol)}</b> (${escHtml(d.chain)})`,
     "",
     `Direction: ${d.consensus.direction} (${d.consensus.score}/5)`,
     `Buy volume: ${fmtUsd(d.consensus.buyVolume)}`,
@@ -91,10 +91,10 @@ function formatTopTraders(d: any): string {
 
 function formatGems(gems: any[]): string {
   if (!gems || gems.length === 0) return "❌ No gems found";
-  const lines = ["💎 LOW MC GEMS"];
+  const lines = ["💎 <b>LOW MC GEMS</b>"];
   for (const g of gems.slice(0, 8)) {
     lines.push(
-      `${esc(g.symbol)} (${esc(g.chain)}) — MC ${fmtMcap(g.mcap)} | Liq ${fmtUsd(g.liquidity)} | Vol ${fmtUsd(g.volume)} | 24h ${g.priceChange24h > 0 ? "+" : ""}${g.priceChange24h.toFixed(1)}%`
+      `<b>${escHtml(g.symbol)}</b> (${escHtml(g.chain)}) — MC ${fmtMcap(g.mcap)} | Liq ${fmtUsd(g.liquidity)} | Vol ${fmtUsd(g.volume)} | 24h ${g.priceChange24h > 0 ? "+" : ""}${g.priceChange24h?.toFixed(1) ?? "?"}%`
     );
   }
   return lines.join("\n");
@@ -105,11 +105,11 @@ function formatMarket(d: any): string {
   const lines: string[] = [];
   if (d.market) {
     const m = d.market;
-    lines.push("📊 GLOBAL MARKET");
-    lines.push(`MC: $${(m.totalMarketCapUsd / 1e12).toFixed(2)}T | Vol: $${(m.totalVolumeUsd / 1e9).toFixed(2)}B`);
-    lines.push(`BTC Dom: ${m.btcDominance.toFixed(1)}% | ETH Dom: ${m.ethDominance.toFixed(1)}%`);
+    lines.push("📊 <b>GLOBAL MARKET</b>");
+    lines.push(`MC: $${((m.totalMarketCapUsd ?? 0) / 1e12).toFixed(2)}T | Vol: $${((m.totalVolumeUsd ?? 0) / 1e9).toFixed(2)}B`);
+    lines.push(`BTC Dom: ${(m.btcDominance ?? 0).toFixed(1)}% | ETH Dom: ${(m.ethDominance ?? 0).toFixed(1)}%`);
     for (const c of (m.topCoins ?? []).slice(0, 5)) {
-      lines.push(`${esc(c.symbol)}: $${c.priceUsd.toLocaleString()} (${c.priceChange24h > 0 ? "+" : ""}${c.priceChange24h.toFixed(1)}%)`);
+      lines.push(`${escHtml(c.symbol)}: $${(c.priceUsd ?? 0).toLocaleString()} (${c.priceChange24h > 0 ? "+" : ""}${(c.priceChange24h ?? 0).toFixed(1)}%)`);
     }
   }
   if (d.fearGreed) {
@@ -121,11 +121,10 @@ function formatMarket(d: any): string {
 
 function formatNews(d: any): string {
   if (!d) return "❌ No data";
-  if (!d.articles || d.articles.length === 0) return `📰 No news found for ${esc(d.ticker)}`;
-  const lines = [`📰 NEWS — ${esc(d.ticker)}`];
+  if (!d.articles || d.articles.length === 0) return `📰 No news found for ${escHtml(d.ticker)}`;
+  const lines = [`📰 <b>NEWS — ${escHtml(d.ticker)}</b>`];
   for (const a of d.articles.slice(0, 5)) {
-    lines.push(`\\[${esc(a.title)}\\]`);
-    if (a.url) lines.push(`${a.url}`);
+    lines.push(`• <a href="${a.url ?? "#"}">${escHtml(a.title)}</a>`);
   }
   return lines.join("\n\n");
 }
@@ -153,11 +152,11 @@ function formatHelp(): string {
 // ─── TOP TOKENS FORMATTER ──────────────────────────────────
 function formatTopTokens(d: any): string {
   if (!d || !d.tokens || d.tokens.length === 0) return "❌ No tokens found";
-  const lines = [`🏆 TOP TOKENS — ${d.chain.toUpperCase()} (${d.total} found)`];
+  const lines = [`🏆 <b>TOP TOKENS — ${d.chain.toUpperCase()}</b> (${d.total} found)`];
   for (const t of d.tokens.slice(0, 15)) {
-    const change = t.priceChange24h > 0 ? `+${t.priceChange24h.toFixed(1)}%` : `${t.priceChange24h.toFixed(1)}%`;
+    const change = t.priceChange24h > 0 ? `+${(t.priceChange24h ?? 0).toFixed(1)}%` : `${(t.priceChange24h ?? 0).toFixed(1)}%`;
     lines.push(
-      `${esc(t.symbol)} (${esc(t.chain)}) — $${fmtMcap(t.mcap)} | Liq $${fmtUsd(t.liquidity)} | Vol $${fmtUsd(t.volume24h)} | 24h ${change}`
+      `<b>${escHtml(t.symbol)}</b> (${escHtml(t.chain)}) — $${fmtMcap(t.mcap)} | Liq $${fmtUsd(t.liquidity)} | Vol $${fmtUsd(t.volume24h)} | 24h ${change}`
     );
   }
   return lines.join("\n");
@@ -196,8 +195,8 @@ function formatWallet(d: any): string {
     `🪙 Holdings: ${d.holdingsCount} tokens\n`,
   ];
   for (const h of (d.holdings ?? []).slice(0, 8)) {
-    const change = h.change24h > 0 ? `+${h.change24h.toFixed(1)}%` : `${h.change24h.toFixed(1)}%`;
-    lines.push(`• ${esc(h.symbol)} — $${fmtUsd(h.value)} | 24h ${change}`);
+    const change = h.change24h > 0 ? `+${h.change24h.toFixed(1)}%` : `${(h.change24h ?? 0).toFixed(1)}%`;
+    lines.push(`• ${escHtml(h.symbol)} — $${fmtUsd(h.value)} | 24h ${change}`);
   }
   if (d.stats) {
     lines.push(`\n📊 Age: ${d.stats.ageDays}d | TXs: ${d.stats.totalTransactions} | ${d.stats.txFrequency}/day`);
@@ -213,7 +212,7 @@ function formatTrenches(d: any): string {
     const src = t.source === "pump.fun" ? "🚀" : "📊";
     const mc = t.mcap > 0 ? `$${fmtMcap(t.mcap)}` : "No MC";
     const liq = t.liq > 0 ? `$${fmtUsd(t.liq)}` : "No liq";
-    lines.push(`${src} <b>${esc(t.symbol)}</b> — MC: ${mc} | Liq: ${liq}`);
+    lines.push(`${src} <b>${escHtml(t.symbol)}</b> — MC: ${mc} | Liq: ${liq}`);
   }
   return lines.join("\n");
 }
@@ -231,7 +230,7 @@ function formatPortfolio(d: any): string {
   for (const p of d.positions) {
     const e = p.pnl >= 0 ? "🟢" : "🔴";
     const s = p.pnl >= 0 ? "+" : "";
-    lines.push(`${e} <b>${esc(p.symbol)}</b> — Entry $${p.entryPrice?.toFixed(6)} → $${p.currentPrice?.toFixed(6)} | PnL ${s}$${fmtUsd(Math.abs(p.pnl))} (${s}${p.pnlPct?.toFixed(2)}%)`);
+    lines.push(`${e} <b>${escHtml(p.symbol)}</b> — Entry $${p.entryPrice?.toFixed(6)} → $${p.currentPrice?.toFixed(6)} | PnL ${s}$${fmtUsd(Math.abs(p.pnl))} (${s}${p.pnlPct?.toFixed(2)}%)`);
   }
   return lines.join("\n");
 }
@@ -249,7 +248,7 @@ export function getAgent(chatId: number, bot: Bot): MemflowAgent {
       // Send calls to all subscribed chats
       const msg = formatCalls(calls);
       for (const [chatId] of chatSubscriptions) {
-        bot.api.sendMessage(chatId, `🎯 DAILY CALLS\n\n${msg}`, { parse_mode: "MarkdownV2" })
+        bot.api.sendMessage(chatId, `🎯 <b>DAILY CALLS</b>\n\n${msg}`, { parse_mode: "HTML" })
           .catch((e) => console.error(`[agent] send to ${chatId} failed:`, (e as Error).message));
       }
     },
@@ -272,32 +271,23 @@ export async function handleAgentMessage(ctx: any, text: string): Promise<boolea
   const msg = formatResponse(response);
 
   try {
-    await ctx.reply(truncate(msg), { parse_mode: "MarkdownV2" });
+    await ctx.reply(truncate(msg), { parse_mode: "HTML" });
   } catch {
-    // Fallback without parse_mode if markdown fails
-    await ctx.reply(truncate(msg.replace(/\\/g, "")));
+    await ctx.reply(truncate(msg.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c] ?? c))));
   }
 
   return true;
 }
 
 export function toggleAutoMode(chatId: number, bot: Bot): boolean {
-  const agent = getAgent(chatId, bot);
-  if (agent instanceof MemflowAgent) {
-    // Check if running via a method or state
-    const instance = agentInstances.get(chatId);
-    if (!instance) return false;
-    // Use a simple flag to track auto state
-    const agentAny = instance as any;
-    if (agentAny._autoRunning) {
-      instance.stopAuto();
-      agentAny._autoRunning = false;
-      return false;
-    } else {
-      instance.startAuto();
-      agentAny._autoRunning = true;
-      return true;
-    }
+  const instance = agentInstances.get(chatId);
+  if (!instance) return false;
+
+  if (instance.isRunning()) {
+    instance.stopAuto();
+    return false;
+  } else {
+    instance.startAuto();
+    return true;
   }
-  return false;
 }

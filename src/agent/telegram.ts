@@ -237,8 +237,24 @@ function formatPortfolio(d: any): string {
 
 // ─── INSTANCES ──────────────────────────────────────────────
 const agentInstances = new Map<number, MemflowAgent>();
+const agentLastAccess = new Map<number, number>();
+const AGENT_IDLE_TIMEOUT_MS = 2 * 3600_000;
+
+export function cleanAgentInstances(): void {
+  const cutoff = Date.now() - AGENT_IDLE_TIMEOUT_MS;
+  for (const [chatId, ts] of agentLastAccess) {
+    if (ts < cutoff) {
+      const agent = agentInstances.get(chatId);
+      if (agent && !agent.isRunning()) {
+        agentInstances.delete(chatId);
+        agentLastAccess.delete(chatId);
+      }
+    }
+  }
+}
 
 export function getAgent(chatId: number, bot: Bot): MemflowAgent {
+  agentLastAccess.set(chatId, Date.now());
   if (agentInstances.has(chatId)) return agentInstances.get(chatId)!;
 
   const agent = new MemflowAgent({

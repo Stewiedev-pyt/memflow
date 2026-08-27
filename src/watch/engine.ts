@@ -95,11 +95,18 @@ export function startWatchEngine(bot: Bot): NodeJS.Timeout {
         checkPriceAlerts(bot).catch((e) => console.error("[alert-check]", (e as Error).message));
       }
 
+      if (tickCount % 5 === 0) {
+        const { checkCopyTrades } = await import("../core/copytrade.js");
+        checkCopyTrades(bot).catch((e) => console.error("[copytrade]", (e as Error).message));
+      }
+
       if (tickCount % 60 === 0 && tickCount > 0) {
         const { cleanAlerts } = await import("../bot/commands/alert.js");
         const { cleanRecentCopies } = await import("../bot/commands/copy.js");
+        const { cleanAgentInstances } = await import("../agent/telegram.js");
         cleanAlerts();
         cleanRecentCopies();
+        cleanAgentInstances();
       }
     } catch (err) {
       console.error("[watch-engine]", (err as Error).message);

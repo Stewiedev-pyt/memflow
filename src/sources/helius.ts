@@ -33,3 +33,35 @@ export async function getTokenLargestAccounts(mint: string): Promise<LargeTokenA
 export async function getSlot(): Promise<number> {
   return rpc<number>("getSlot", []);
 }
+
+/** Current token balance held by a wallet (owner) for a given mint. */
+export async function getSolTokenBalance(wallet: string, mint: string): Promise<number> {
+  try {
+    const result = await rpc<{
+      value?: Array<{
+        account?: {
+          data?: { parsed?: { info?: { tokenAmount?: { uiAmount?: number | null } } } };
+        };
+      }>;
+    }>("getTokenAccountsByOwner", [wallet, { mint }, { encoding: "jsonParsed" }]);
+    return (result.value ?? []).reduce((sum, a) => {
+      const ui = a.account?.data?.parsed?.info?.tokenAmount?.uiAmount;
+      return sum + (typeof ui === "number" && Number.isFinite(ui) ? ui : 0);
+    }, 0);
+  } catch {
+    return 0;
+  }
+}
+
+/** Total supply of a mint — used for holder-concentration math. */
+export async function getTokenSupply(mint: string): Promise<number> {
+  try {
+    const result = await rpc<{
+      value?: { data?: { parsed?: { info?: { tokenAmount?: { uiAmount?: number | null } } } } };
+    }>("getTokenSupply", [mint]);
+    const ui = result.value?.data?.parsed?.info?.tokenAmount?.uiAmount;
+    return typeof ui === "number" && Number.isFinite(ui) ? ui : 0;
+  } catch {
+    return 0;
+  }
+}

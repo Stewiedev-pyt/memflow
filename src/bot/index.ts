@@ -21,6 +21,7 @@ import { registerSmartCommand } from "./commands/smart.js";
 import { registerChartCommand } from "./commands/chart.js";
 import { registerAlertCommand } from "./commands/alert.js";
 import { registerCopyCommand } from "./commands/copy.js";
+import { registerCheckCommand, handleCheck, CA_RE } from "./commands/check.js";
 import { clearPending, takePending } from "./pending.js";
 import { config } from "../config.js";
 import { handleAgentMessage, toggleAutoMode } from "../agent/telegram.js";
@@ -50,6 +51,7 @@ export function createBot(): Bot {
   registerChartCommand(bot);
   registerAlertCommand(bot);
   registerCopyCommand(bot);
+  registerCheckCommand(bot);
 
   bot.command("start", async (ctx) => {
     if (!ctx.chat) return;
@@ -60,10 +62,11 @@ export function createBot(): Bot {
           "",
           "Meme-token intelligence on Solana, ETH, BSC, Base.",
           "",
-          "Type /help to see all 30 commands.",
+          "Type /help to see all 31 commands.",
           "",
           "Quick start:",
           "• /scan PEPE — full token scan",
+          "• /check PEPE — entry check (volume, liq, traders, dev)",
           "• /calls — get trade calls",
           "• /chart PEPE — price chart",
           "• /alert add PEPE price_above 0.001 — set alert",
@@ -85,6 +88,7 @@ export function createBot(): Bot {
           "🤖 <b>memflow — all commands</b>",
           "",
           "<b>Scan &amp; Analysis</b>",
+          "/check &lt;token|CA&gt; — 4-stage entry check (volume/liq/traders/dev)",
           "/scan &lt;token&gt; — full token scan",
           "/find &lt;token&gt; — find the REAL token among clones",
           "/brief &lt;token&gt; — technicals + news briefing",
@@ -165,6 +169,10 @@ export function createBot(): Bot {
     if (kind === "snipers") return handleSnipers(ctx, text);
     if (kind === "brief") return handleBrief(ctx, text);
     if (kind === "vl") return handleVl(ctx, text);
+    if (kind === "check") return handleCheck(ctx, text);
+
+    // Pasted contract address -> auto-run the entry check (Rick-style autoresponder)
+    if (CA_RE.test(text)) return handleCheck(ctx, text);
 
     // No pending state — route through agent for natural language processing
     await handleAgentMessage(ctx, text);
@@ -183,6 +191,7 @@ export async function initBot(bot: Bot): Promise<string> {
     { command: "start", description: "Start the bot" },
     { command: "help", description: "Show all commands" },
     { command: "scan", description: "Full token scan — price, liq, chart, creator" },
+    { command: "check", description: "Entry check — volume, liq, top traders, dev" },
     { command: "find", description: "Find the REAL token among clones" },
     { command: "brief", description: "Technicals + news briefing" },
     { command: "audit", description: "Security audit of a contract" },

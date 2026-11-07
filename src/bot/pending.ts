@@ -1,4 +1,4 @@
-export type PendingKind = "scan" | "audit" | "find" | "watch" | "holders" | "top" | "snipers" | "brief" | "vl" | "nh" | "ad" | "dev" | "wd";
+export type PendingKind = "scan" | "audit" | "find" | "watch" | "top" | "snipers" | "brief" | "vl" | "nh";
 
 interface Pending {
   kind: PendingKind;

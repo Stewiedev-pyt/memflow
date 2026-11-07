@@ -160,7 +160,7 @@ export function createBot(): Bot {
     if (kind === "audit") return handleAudit(ctx, text);
     if (kind === "find") return handleFind(ctx, text);
     if (kind === "watch") return handleWatch(ctx, text);
-    if (kind === "holders") return handleNotableHolders(ctx, text);
+    if (kind === "nh") return handleNotableHolders(ctx, text);
     if (kind === "top") return handleTop(ctx, text);
     if (kind === "snipers") return handleSnipers(ctx, text);
     if (kind === "brief") return handleBrief(ctx, text);
